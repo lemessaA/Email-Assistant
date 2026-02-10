@@ -1,0 +1,10 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "email_agent": {
+      "path": "./src/agents/email_graph.py:graph",
+      "engine": "inmem"
+    }
+  },
+  "env": ".env"
+}

@@ -141,8 +141,14 @@ class EmailAssistantAgent:
     def _should_execute_actions(self, state: AgentState) -> str:
         """Determine if actions need to be executed before responding"""
         analysis = state["metadata"].get("analysis", "")
+        email_data = state.get("email_data", {})
+        subject = email_data.get("subject", "").lower()
+        body = email_data.get("body", "").lower()
         
-        if any(action in analysis.lower() for action in ["schedule", "confirm", "book", "send"]):
+        # Check both analysis and original email content for action keywords
+        combined_text = f"{analysis} {subject} {body}"
+        
+        if any(keyword in combined_text for keyword in ["schedule", "meeting", "appointment", "call"]):
             return "execute"
         return "respond"
     
