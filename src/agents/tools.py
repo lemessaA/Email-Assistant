@@ -2,11 +2,11 @@ from langchain.tools import tool
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import requests
-# import smtplib
-# from email.mime.text import MIMEText
-# from email.mime.multipart import MIMEMultipart
-# import requests
-# from bs4 import BeautifulSoup
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import requests
+from bs4 import BeautifulSoup
 
 class EmailTools:
     
