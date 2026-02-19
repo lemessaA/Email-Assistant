@@ -8,6 +8,8 @@ class Environment(str, Enum):
     PRODUCTION = "production"
 
 class Settings(BaseSettings):
+    model_config = {"extra": "ignore"}
+    
     # App
     APP_NAME: str = "Email Assistant AI"
     ENVIRONMENT: Environment = Environment.LOCAL
@@ -46,8 +48,5 @@ class Settings(BaseSettings):
     
     # Rate Limiting
     rate_limit_per_minute: int = 60
-    
-    class Config:
-        env_file = ".env"
 
 settings = Settings()

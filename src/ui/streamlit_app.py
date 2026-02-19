@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 import json
-from typing import Dict, Any
+from typing import Dict, Any, List
 import pandas as pd
 from datetime import datetime
 
@@ -43,7 +43,12 @@ if 'email_history' not in st.session_state:
 
 class EmailAssistantUI:
     def __init__(self):
-        self.api_url = st.secrets.get("API_URL", "http://localhost:8000")
+        try:
+
+            self.api_url = st.secrets.get("API_URL", "http://localhost:8000")
+        except Exception:
+            self.api_url = "http://localhost:8000"
+            
     
     def render_sidebar(self):
         with st.sidebar:
@@ -367,7 +372,7 @@ class EmailAssistantUI:
             "suggested_actions": ["Schedule meeting", "Send follow-up", "Update project plan"]
         }
     
-    def fetch_unread_emails(self) -> List[Dict[str, Any]]:
+    def fetch_unread_emails(self) -> list[Dict[str, Any]]:
         """Fetch unread emails"""
         # Mock data
         return [
