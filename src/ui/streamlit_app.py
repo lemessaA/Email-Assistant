@@ -44,10 +44,9 @@ if 'email_history' not in st.session_state:
 class EmailAssistantUI:
     def __init__(self):
         try:
-
-            self.api_url = st.secrets.get("API_URL", "http://localhost:8000")
+            self.api_url = st.secrets.get("API_URL", "http://localhost:8001")
         except Exception:
-            self.api_url = "http://localhost:8000"
+            self.api_url = "http://localhost:8001"
             
     
     def render_sidebar(self):
@@ -59,7 +58,7 @@ class EmailAssistantUI:
             # LLM Selection
             llm_model = st.selectbox(
                 "LLM Model",
-                ["gpt-4-turbo", "claude-3-opus", "gemini-pro"],
+                ["llama-3.1-8b-instant", "llama-3.1-70b-versatile", "llama-3.1-405b-instruct"],
                 index=0
             )
             

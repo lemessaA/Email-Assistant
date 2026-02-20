@@ -2,10 +2,21 @@ from typing import TypedDict, Annotated, List, Optional, Dict, Any
 from langgraph.graph import StateGraph, END
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_ollama import ChatOllama
+from langchain_groq import ChatGroq
 import operator
 from datetime import datetime
-from src.core.config import settings
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+
+from .tools import (
+    EmailTools,
+    SearchTools,
+    CalendarTools,
+    FileTools
+)
 
 # State definition
 class AgentState(TypedDict):
@@ -19,41 +30,29 @@ class EmailAssistantAgent:
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
         self.llm = self._initialize_llm()
+        self.tools = self._initialize_tools()
         self.agent = self._build_agent_graph()
         
     def _initialize_llm(self):
-        # Use Ollama for local LLM
-        try:
-            # Test connection first
-            import requests
-            response = requests.get(f"{settings.OLLAMA_BASE_URL}/api/tags", timeout=5)
-            if response.status_code != 200:
-                raise Exception("Ollama not responding")
-                
-            return ChatOllama(
-                model=settings.PRIMARY_LLM.split("/")[-1],  # Get model name (e.g., "llama2" from "ollama/llama2")
-                base_url=settings.OLLAMA_BASE_URL,
-                temperature=0.1
-            )
-        except Exception as e:
-            # Create a mock LLM for fallback
-            class MockLLM:
-                def __init__(self):
-                    self.model = "mock"
-                    self.temperature = 0.1
-                
-                def invoke(self, input_data):
-                    class MockResponse:
-                        def __init__(self, content):
-                            self.content = content
-                        def __str__(self):
-                            return self.content
-                    return MockResponse("Mock analysis: Email contains scheduling request for meeting")
-                
-                def ainvoke(self, input_data):
-                    return self.invoke(input_data)
-            
-            return MockLLM()
+        return ChatGroq(
+            model="llama-3.1-8b-instant",
+            temperature=0.1,
+            streaming=True
+        )
+    
+    def _initialize_tools(self):
+        return [
+            EmailTools.send_email,
+            EmailTools.draft_email,
+            EmailTools.get_unread_emails,
+            EmailTools.search_emails,
+            SearchTools.web_search,
+            SearchTools.internal_knowledge_search,
+            CalendarTools.check_availability,
+            CalendarTools.schedule_meeting,
+            FileTools.read_attachment,
+            FileTools.save_draft
+        ]
     
     def _build_agent_graph(self):
         # Define nodes
@@ -111,7 +110,28 @@ class EmailAssistantAgent:
     
     def _gather_context(self, state: AgentState) -> AgentState:
         """Gather additional context needed for response"""
-        # Simple implementation
+        messages = state["messages"]
+        email_data = state["email_data"]
+        
+        # Check if we need external information
+        if self._needs_external_info(state):
+            # Use search tools to gather context
+            search_tool = SearchTools.internal_knowledge_search
+            search_results = search_tool.invoke({
+                "query": email_data.get("subject", "") + " " + email_data.get("body", ""),
+                "max_results": 5
+            })
+            state["context"]["search_results"] = search_results
+        
+        # Check calendar if scheduling is involved
+        if "meeting" in state["metadata"].get("analysis", "").lower():
+            calendar_tool = CalendarTools.check_availability
+            availability = calendar_tool.invoke({
+                "duration": 60,
+                "date": datetime.now().date()
+            })
+            state["context"]["availability"] = availability
+        
         return state
     
     def _generate_response(self, state: AgentState) -> AgentState:
@@ -143,25 +163,36 @@ class EmailAssistantAgent:
     
     def _execute_actions(self, state: AgentState) -> AgentState:
         """Execute required actions (send emails, schedule meetings, etc.)"""
+        # This would execute tools based on analysis
+        # For example: send confirmation email, schedule meeting, etc.
         return state
     
     def _review_and_finalize(self, state: AgentState) -> AgentState:
         """Review and finalize the response"""
+        # Add final review step before sending
+        review_prompt = """Review this email response for:
+        1. Tone and professionalism
+        2. Completeness
+        3. Accuracy
+        4. Action items clearly stated
+        """
+        # Implementation would include final checks
         return state
     
     def _should_execute_actions(self, state: AgentState) -> str:
         """Determine if actions need to be executed before responding"""
         analysis = state["metadata"].get("analysis", "")
-        email_data = state.get("email_data", {})
-        subject = email_data.get("subject", "").lower()
-        body = email_data.get("body", "").lower()
         
-        # Check both analysis and original email content for action keywords
-        combined_text = f"{analysis} {subject} {body}"
-        
-        if any(keyword in combined_text for keyword in ["schedule", "meeting", "appointment", "call"]):
+        if any(action in analysis.lower() for action in ["schedule", "confirm", "book", "send"]):
             return "execute"
         return "respond"
+    
+    def _needs_external_info(self, state: AgentState) -> bool:
+        """Check if external information is needed"""
+        analysis = state["metadata"].get("analysis", "")
+        # Simple heuristic - can be enhanced
+        question_words = ["what", "when", "where", "who", "why", "how", "?"]
+        return any(word in analysis.lower() for word in question_words)
     
     async def process_email(self, email_data: Dict[str, Any]) -> Dict[str, Any]:
         """Main entry point for processing an email"""

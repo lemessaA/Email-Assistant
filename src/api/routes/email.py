@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional, Dict, Any
 import json
+import asyncio
 
 from src.agents.email_agent import EmailAssistantAgent
 
@@ -32,8 +34,7 @@ async def process_email(
 ) -> EmailResponse:
     """Process an incoming email and generate response/actions"""
     try:
-        email_data = request.dict()
-        
+        email_data = request.model_dump()
         # Process email asynchronously
         result = await agent.process_email(email_data)
         
@@ -41,7 +42,7 @@ async def process_email(
             success=True,
             draft=result.get("response"),
             actions=result.get("actions_taken", []),
-            analysis=result.get("analysis"),
+            analysis={"content": result.get("analysis")} if isinstance(result.get("analysis"), str) else result.get("analysis"),
             processing_time=0.0  # Would calculate actual time
         )
     except Exception as e:
@@ -50,18 +51,25 @@ async def process_email(
 @router.post("/draft")
 async def draft_email(
     request: EmailRequest,
-    tone: str = "professional",
     agent: EmailAssistantAgent = Depends(lambda: EmailAssistantAgent())
 ) -> Dict[str, Any]:
     """Draft an email response"""
     try:
         # Use the agent to draft response
-        result = await agent.process_email(request.dict())
+        result = await agent.process_email(request.model_dump())
+        
+        analysis = result.get("analysis")
+        if isinstance(analysis, str):
+            tone_analysis = analysis
+        elif isinstance(analysis, dict):
+            tone_analysis = analysis.get("content", "professional")
+        else:
+            tone_analysis = "professional"
         
         return {
             "draft": result.get("response"),
             "suggested_subject": f"Re: {request.subject}",
-            "tone_analysis": result.get("analysis", {}).get("tone")
+            "tone_analysis": tone_analysis
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

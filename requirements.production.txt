@@ -9,8 +9,7 @@ pydantic-settings==2.1.0
 
 # LangChain & AI
 langchain==0.1.0
-langchain-core==0.1.7
-langchain-community==0.0.12
+langchain-core==0.1.9
 langchain-ollama==0.1.0
 
 # LangGraph
