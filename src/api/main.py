@@ -5,7 +5,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from loguru import logger
 
-from src.core.config import settings
+from src.core.config import settings, Environment
 from src.agents.email_agent import EmailAssistantAgent
 from src.api.routes import email, eval
 from src.database.connection import init_db
@@ -54,5 +54,5 @@ if __name__ == "__main__":
         "main:app",
         host="0.0.0.0",
         port=8000,
-        reload=settings.environment == "local"
+        reload=settings.ENVIRONMENT == Environment.LOCAL
     )

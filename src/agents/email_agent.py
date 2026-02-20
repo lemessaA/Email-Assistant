@@ -12,10 +12,16 @@ load_dotenv()
 
 
 from .tools import (
-    EmailTools,
-    SearchTools,
-    CalendarTools,
-    FileTools
+    send_email,
+    draft_email,
+    get_unread_emails,
+    search_emails,
+    web_search,
+    internal_knowledge_search,
+    check_availability,
+    schedule_meeting,
+    read_attachment,
+    save_draft,
 )
 
 # State definition
@@ -42,16 +48,16 @@ class EmailAssistantAgent:
     
     def _initialize_tools(self):
         return [
-            EmailTools.send_email,
-            EmailTools.draft_email,
-            EmailTools.get_unread_emails,
-            EmailTools.search_emails,
-            SearchTools.web_search,
-            SearchTools.internal_knowledge_search,
-            CalendarTools.check_availability,
-            CalendarTools.schedule_meeting,
-            FileTools.read_attachment,
-            FileTools.save_draft
+            send_email,
+            draft_email,
+            get_unread_emails,
+            search_emails,
+            web_search,
+            internal_knowledge_search,
+            check_availability,
+            schedule_meeting,
+            read_attachment,
+            save_draft,
         ]
     
     def _build_agent_graph(self):
@@ -116,7 +122,7 @@ class EmailAssistantAgent:
         # Check if we need external information
         if self._needs_external_info(state):
             # Use search tools to gather context
-            search_tool = SearchTools.internal_knowledge_search
+            search_tool = internal_knowledge_search
             search_results = search_tool.invoke({
                 "query": email_data.get("subject", "") + " " + email_data.get("body", ""),
                 "max_results": 5
@@ -125,7 +131,7 @@ class EmailAssistantAgent:
         
         # Check calendar if scheduling is involved
         if "meeting" in state["metadata"].get("analysis", "").lower():
-            calendar_tool = CalendarTools.check_availability
+            calendar_tool = check_availability
             availability = calendar_tool.invoke({
                 "duration": 60,
                 "date": datetime.now().date()

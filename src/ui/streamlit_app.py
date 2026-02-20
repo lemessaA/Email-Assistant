@@ -44,9 +44,9 @@ if 'email_history' not in st.session_state:
 class EmailAssistantUI:
     def __init__(self):
         try:
-            self.api_url = st.secrets.get("API_URL", "http://localhost:8001")
+            self.api_url = st.secrets.get("API_URL", "http://localhost:8000")
         except Exception:
-            self.api_url = "http://localhost:8001"
+            self.api_url = "http://localhost:8000"
             
     
     def render_sidebar(self):
@@ -195,7 +195,8 @@ class EmailAssistantUI:
                         subject=subject,
                         body=email_body,
                         tone=config["tone"],
-                        priority=config["priority"]
+                        priority=config["priority"],
+                        to_emails=to_emails,
                     )
                     st.session_state.conversation.append({
                         "role": "assistant",
@@ -293,72 +294,113 @@ class EmailAssistantUI:
     
     def render_history_tab(self):
         st.subheader("Email History")
-        
-        # Show email history
+
         if st.session_state.email_history:
             df = pd.DataFrame(st.session_state.email_history)
-            st.dataframe(
-                df[['date', 'to', 'subject', 'status']],
-                use_container_width=True
-            )
-            
-            # Analytics
-            st.subheader("Analytics")
-            col1, col2 = st.columns(2)
-            with col1:
-                # Sentiment over time
-                st.line_chart(df.set_index('date')['sentiment_score'])
-            with col2:
-                # Response time distribution
-                st.bar_chart(df['response_time_minutes'].value_counts())
+            display_cols = [c for c in ['date', 'to', 'subject', 'status'] if c in df.columns]
+            if display_cols:
+                st.dataframe(df[display_cols], use_container_width=True)
+
+            # Analytics (only if we have the required columns)
+            if 'sentiment_score' in df.columns and 'date' in df.columns:
+                st.subheader("Analytics")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.line_chart(df.set_index('date')[['sentiment_score']])
+                if 'response_time_minutes' in df.columns:
+                    with col2:
+                        st.bar_chart(df['response_time_minutes'].value_counts())
         else:
             st.info("No email history yet.")
     
-    def generate_response(self, subject: str, body: str, tone: str, priority: str) -> str:
+    def improve_tone(self, body: str, tone: str) -> None:
+        """Improve email tone using AI"""
+        if not body.strip():
+            st.warning("Enter email content first.")
+            return
+        try:
+            result = self.generate_response("Tone improvement", body, tone, "normal", "recipient@example.com")
+            st.session_state.conversation.append({"role": "assistant", "content": result})
+            st.success("Tone improved! Check the assistant panel.")
+        except Exception as e:
+            st.error(f"Error: {str(e)}")
+
+    def check_grammar(self, body: str) -> None:
+        """Check grammar - placeholder for future API"""
+        if not body.strip():
+            st.warning("Enter email content first.")
+            return
+        st.info("Grammar check: Use 'Generate Response' for AI-assisted editing.")
+
+    def add_context(self, subject: str, body: str) -> None:
+        """Add context - uses generate to add relevant info"""
+        if not body.strip():
+            st.warning("Enter email content first.")
+            return
+        try:
+            result = self.generate_response(subject, f"Add relevant context to: {body}", "Professional", "normal", "recipient@example.com")
+            st.session_state.conversation.append({"role": "assistant", "content": result})
+            st.success("Context added! Check the assistant panel.")
+        except Exception as e:
+            st.error(f"Error: {str(e)}")
+
+    def generate_response(self, subject: str, body: str, tone: str, priority: str, to_emails: str = "", from_email: str = "user@example.com") -> str:
         """Generate email response using API"""
         try:
+            payload = {
+                "subject": subject,
+                "body": body,
+                "from_email": from_email if from_email else "user@example.com",
+                "to_emails": [e.strip() for e in to_emails.split(",") if e.strip()] if to_emails else ["recipient@example.com"],
+            }
             response = requests.post(
                 f"{self.api_url}/api/v1/email/draft",
-                json={
-                    "subject": subject,
-                    "body": body,
-                    "tone": tone,
-                    "priority": priority
-                }
+                json=payload,
+                timeout=60
             )
+            response.raise_for_status()
             return response.json().get("draft", "Could not generate response.")
-        except:
-            return "Error connecting to API. Please try again."
+        except requests.exceptions.RequestException as e:
+            return f"Error connecting to API: {str(e)}"
+        except Exception as e:
+            return f"Error: {str(e)}"
     
     def send_email(self, to: str, subject: str, body: str, cc: str, config: Dict[str, Any]):
-        """Send email via API"""
+        """Send email via API (uses /process - actual SMTP send requires backend config)"""
         try:
             response = requests.post(
-                f"{self.api_url}/api/v1/email/send",
+                f"{self.api_url}/api/v1/email/process",
                 json={
-                    "to_emails": [to],
                     "subject": subject,
                     "body": body,
-                    "cc_emails": [cc] if cc else []
-                }
+                    "from_email": "user@example.com",
+                    "to_emails": [e.strip() for e in to.split(",") if e.strip()],
+                    "cc_emails": [e.strip() for e in cc.split(",") if e.strip()] if cc else [],
+                },
+                timeout=60
             )
-            
+
             if response.status_code == 200:
-                st.success("Email sent successfully!")
-                
-                # Add to history
+                result = response.json()
+                draft = result.get("draft", "")
+                st.success("Email processed! Draft ready.")
+                if draft:
+                    st.session_state.conversation.append({"role": "assistant", "content": draft})
+
                 st.session_state.email_history.append({
                     "date": datetime.now().isoformat(),
                     "to": to,
                     "subject": subject,
-                    "status": "sent",
+                    "status": "processed",
                     "sentiment_score": 0.8,
                     "response_time_minutes": 2
                 })
             else:
-                st.error("Failed to send email.")
-        except:
-            st.error("Error connecting to email service.")
+                st.error(f"Failed to process: {response.json().get('detail', response.text)}")
+        except requests.exceptions.RequestException as e:
+            st.error(f"Error connecting to API: {str(e)}")
+        except Exception as e:
+            st.error(f"Error: {str(e)}")
     
     def analyze_email(self, email_file) -> Dict[str, Any]:
         """Analyze email content"""
