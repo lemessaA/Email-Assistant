@@ -6,8 +6,10 @@ import json
 import asyncio
 
 from src.agents.email_agent import EmailAssistantAgent
+from src.services.email_sender import send_email as send_email_smtp
 
 router = APIRouter()
+
 
 class EmailRequest(BaseModel):
     subject: str
@@ -73,6 +75,42 @@ async def draft_email(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/send")
+async def send_email(
+    request: EmailRequest,
+) -> Dict[str, Any]:
+    """Send an email to recipients via SMTP. Requires SMTP_* configured in .env."""
+    try:
+        attachment_paths = []
+        if request.attachments:
+            for att in request.attachments:
+                path = att.get("path") or att.get("file_path")
+                if path:
+                    attachment_paths.append(path)
+
+        success, message = send_email_smtp(
+            from_email=request.from_email,
+            to_emails=list(request.to_emails),
+            subject=request.subject,
+            body=request.body,
+            cc_emails=list(request.cc_emails) if request.cc_emails else None,
+            attachment_paths=attachment_paths if attachment_paths else None,
+        )
+
+        if success:
+            return {
+                "success": True,
+                "message": message,
+                "to": list(request.to_emails),
+            }
+        else:
+            raise HTTPException(status_code=502, detail=message)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/stream")
 async def stream_response(

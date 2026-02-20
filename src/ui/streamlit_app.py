@@ -54,7 +54,14 @@ class EmailAssistantUI:
             st.title("✉️ Email Assistant")
             
             st.subheader("Configuration")
-            
+
+            # Sender email (for sending)
+            from_email = st.text_input(
+                "Your Email (Sender)",
+                placeholder="your-email@gmail.com",
+                help="Required for sending emails. Must match SMTP account.",
+            )
+
             # LLM Selection
             llm_model = st.selectbox(
                 "LLM Model",
@@ -106,7 +113,8 @@ class EmailAssistantUI:
                 "tone": tone,
                 "priority": priority,
                 "auto_send": auto_send,
-                "template": templates.get(selected_template, "")
+                "template": templates.get(selected_template, ""),
+                "from_email": from_email or "",
             }
     
     def render_main_panel(self, config: Dict[str, Any]):
@@ -215,11 +223,12 @@ class EmailAssistantUI:
         with col_send1:
             if st.button("📤 Send Email", type="primary", use_container_width=True):
                 self.send_email(
+                    from_email=config.get("from_email", ""),
                     to=to_emails,
                     subject=subject,
                     body=email_body,
                     cc=cc_emails,
-                    config=config
+                    config=config,
                 )
         
         with col_send2:
@@ -365,38 +374,52 @@ class EmailAssistantUI:
         except Exception as e:
             return f"Error: {str(e)}"
     
-    def send_email(self, to: str, subject: str, body: str, cc: str, config: Dict[str, Any]):
-        """Send email via API (uses /process - actual SMTP send requires backend config)"""
+    def send_email(
+        self,
+        from_email: str,
+        to: str,
+        subject: str,
+        body: str,
+        cc: str,
+        config: Dict[str, Any],
+    ):
+        """Send email via API (actual SMTP - requires SMTP_* in .env)"""
+        if not from_email or not from_email.strip():
+            st.error("Enter your sender email in the sidebar (Your Email).")
+            return
+        to_list = [e.strip() for e in to.split(",") if e.strip()]
+        if not to_list:
+            st.error("Enter at least one recipient in the To field.")
+            return
+
         try:
             response = requests.post(
-                f"{self.api_url}/api/v1/email/process",
+                f"{self.api_url}/api/v1/email/send",
                 json={
                     "subject": subject,
                     "body": body,
-                    "from_email": "user@example.com",
-                    "to_emails": [e.strip() for e in to.split(",") if e.strip()],
+                    "from_email": from_email.strip(),
+                    "to_emails": to_list,
                     "cc_emails": [e.strip() for e in cc.split(",") if e.strip()] if cc else [],
                 },
-                timeout=60
+                timeout=60,
             )
 
             if response.status_code == 200:
                 result = response.json()
-                draft = result.get("draft", "")
-                st.success("Email processed! Draft ready.")
-                if draft:
-                    st.session_state.conversation.append({"role": "assistant", "content": draft})
+                st.success(result.get("message", "Email sent successfully!"))
 
                 st.session_state.email_history.append({
                     "date": datetime.now().isoformat(),
                     "to": to,
                     "subject": subject,
-                    "status": "processed",
+                    "status": "sent",
                     "sentiment_score": 0.8,
-                    "response_time_minutes": 2
+                    "response_time_minutes": 2,
                 })
             else:
-                st.error(f"Failed to process: {response.json().get('detail', response.text)}")
+                err = response.json().get("detail", response.text)
+                st.error(f"Failed to send: {err}")
         except requests.exceptions.RequestException as e:
             st.error(f"Error connecting to API: {str(e)}")
         except Exception as e:
