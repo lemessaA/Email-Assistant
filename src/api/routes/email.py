@@ -2,9 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional, Dict, Any
 import json
-import time
-from src.agents.email_agent import EmailAssistantAgent
 
+from src.agents.email_agent import EmailAssistantAgent
 
 router = APIRouter()
 
@@ -28,35 +27,22 @@ class EmailResponse(BaseModel):
 @router.post("/process")
 async def process_email(
     request: EmailRequest,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    agent: EmailAssistantAgent = Depends(lambda: EmailAssistantAgent())
 ) -> EmailResponse:
     """Process an incoming email and generate response/actions"""
     try:
-        start_time = time.time()
+        email_data = request.dict()
         
-        # For testing, return mock response without agent
-        return EmailResponse(
-            success=True,
-            draft="Thank you for your email. I will get back to you shortly.",
-            actions=[],
-            analysis={"intent": "general inquiry"},
-            processing_time=0.5
-        )
-        
-        # Create agent instance 
-        agent = EmailAssistantAgent()
-        
-        # Process email using the agent
-        result = await agent.process_email(request.dict())
-        
-        processing_time = time.time() - start_time
+        # Process email asynchronously
+        result = await agent.process_email(email_data)
         
         return EmailResponse(
             success=True,
             draft=result.get("response"),
             actions=result.get("actions_taken", []),
-            analysis={"intent": result.get("analysis", "general inquiry")},
-            processing_time=processing_time
+            analysis=result.get("analysis"),
+            processing_time=0.0  # Would calculate actual time
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -64,28 +50,42 @@ async def process_email(
 @router.post("/draft")
 async def draft_email(
     request: EmailRequest,
-    tone: str = "professional"
+    tone: str = "professional",
+    agent: EmailAssistantAgent = Depends(lambda: EmailAssistantAgent())
 ) -> Dict[str, Any]:
     """Draft an email response"""
     try:
-        # Simple mock response
+        # Use the agent to draft response
+        result = await agent.process_email(request.dict())
+        
         return {
-            "draft": f"Thank you for your email regarding: {request.subject}",
+            "draft": result.get("response"),
             "suggested_subject": f"Re: {request.subject}",
-            "tone_analysis": tone
+            "tone_analysis": result.get("analysis", {}).get("tone")
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/stream")
-async def stream_response(email_id: str):
+async def stream_response(
+    email_id: str,
+    agent: EmailAssistantAgent = Depends(lambda: EmailAssistantAgent())
+):
     """Stream the email processing response"""
     async def event_generator():
+        # Simulate streaming response
         yield f"data: Analyzing email...\n\n"
+        await asyncio.sleep(0.5)
+        
+        yield f"data: Gathering context...\n\n"
+        await asyncio.sleep(0.5)
+        
         yield f"data: Generating response...\n\n"
+        await asyncio.sleep(1)
+        
+        yield f"data: Finalizing...\n\n"
         yield f"data: DONE\n\n"
     
-    from fastapi.responses import StreamingResponse
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream"
