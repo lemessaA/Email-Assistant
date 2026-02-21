@@ -284,6 +284,7 @@ class EmailAssistantUI:
             
             return {
                 "llm_model": llm_model,
+                "from_email": email_user,
                 "tone": tone,
                 "priority": priority,
                 "auto_send": auto_send,

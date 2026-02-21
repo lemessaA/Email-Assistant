@@ -12,16 +12,10 @@ load_dotenv()
 
 
 from src.agents.tools import (
-    send_email,
-    draft_email,
-    get_unread_emails,
-    search_emails,
-    web_search,
-    internal_knowledge_search,
-    check_availability,
-    schedule_meeting,
-    read_attachment,
-    save_draft,
+    EmailTools,
+    SearchTools,
+    CalendarTools,
+    FileTools,
 )
 
 # State definition
@@ -48,16 +42,16 @@ class EmailAssistantAgent:
     
     def _initialize_tools(self):
         return [
-            send_email,
-            draft_email,
-            get_unread_emails,
-            search_emails,
-            web_search,
-            internal_knowledge_search,
-            check_availability,
-            schedule_meeting,
-            read_attachment,
-            save_draft,
+            EmailTools.send_email,
+            EmailTools.draft_email,
+            EmailTools.get_unread_emails,
+            EmailTools.search_emails,
+            SearchTools.web_search,
+            SearchTools.internal_knowledge_search,
+            CalendarTools.check_availability,
+            CalendarTools.schedule_meeting,
+            FileTools.read_attachment,
+            FileTools.save_draft,
         ]
     
     def _build_agent_graph(self):

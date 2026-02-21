@@ -113,11 +113,11 @@ async def send_email(
 async def get_unread_emails():
     """Get unread emails for processing"""
     try:
-        from src.agents.tools import get_unread_emails
+        from src.agents.tools import EmailTools
         from src.core.config import settings
         
         # Use real email fetching tool
-        emails = get_unread_emails.invoke({
+        emails = EmailTools.get_unread_emails.invoke({
             "limit": 10,
             "folder": "inbox",
             "imap_server": settings.imap_server,
