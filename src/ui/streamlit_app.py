@@ -482,7 +482,7 @@ class EmailAssistantUI:
                         <div class="email-card">
                             <strong>From:</strong> {email['from']}<br>
                             <strong>Subject:</strong> {email['subject']}<br>
-                            <small>{email['date']}</small>
+                            <small>{email.get('received', email.get('date', 'No date'))}</small>
                         </div>
                         """, unsafe_allow_html=True)
                         

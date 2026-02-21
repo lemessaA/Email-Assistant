@@ -109,7 +109,7 @@ async def send_email(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/email/emails/unread")
+@router.get("/emails/unread")
 async def get_unread_emails():
     """Get unread emails for processing"""
     try:

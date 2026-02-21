@@ -77,20 +77,100 @@ class EmailTools:
     @tool
     def get_unread_emails(
         limit: int = 10,
-        folder: str = "inbox"
+        folder: str = "inbox",
+        imap_server: str = "imap.gmail.com",
+        username: str = "your-email@gmail.com",
+        password: str = "your-app-password"
     ) -> List[Dict[str, Any]]:
-        """Retrieve unread emails from specified folder"""
-        # Implementation using IMAP
-        # This is a mock implementation
-        return [
-            {
-                "id": "1",
-                "subject": "Meeting Request",
-                "from": "john@example.com",
-                "body": "Can we meet tomorrow?",
-                "received": datetime.now().isoformat()
-            }
-        ]
+        """Retrieve unread emails from specified folder using real IMAP"""
+        try:
+            import imaplib
+            import email
+            from email.header import decode_header
+            
+            # Connect to IMAP server
+            with imaplib.IMAP4_SSL(imap_server) as imap:
+                # Login
+                imap.login(username, password)
+                
+                # Select the folder
+                status, messages = imap.select(folder)
+                if status != 'OK':
+                    raise Exception(f"Failed to select folder: {folder}")
+                
+                # Search for unread emails
+                status, email_ids = imap.search(None, '(UNSEEN)')
+                if status != 'OK':
+                    raise Exception("Failed to search for unread emails")
+                
+                emails = []
+                email_id_list = email_ids[0].split()[:limit]  # Limit results
+                
+                for email_id in email_id_list:
+                    try:
+                        # Fetch email
+                        status, msg_data = imap.fetch(email_id, '(RFC822)')
+                        if status != 'OK':
+                            continue
+                            
+                        # Parse email
+                        raw_email = msg_data[0][1]
+                        msg = email.message_from_bytes(raw_email)
+                        
+                        # Extract email details
+                        subject = decode_header(msg.get('Subject', ''))[0][0]
+                        if isinstance(subject, bytes):
+                            subject = subject.decode('utf-8', errors='ignore')
+                        
+                        from_addr = msg.get('From', '')
+                        to_addr = msg.get('To', '')
+                        date = msg.get('Date', '')
+                        
+                        # Extract body
+                        body = ""
+                        if msg.is_multipart():
+                            for part in msg.walk():
+                                if part.get_content_type() == "text/plain":
+                                    try:
+                                        body = part.get_payload(decode=True).decode('utf-8', errors='ignore')
+                                        break
+                                    except:
+                                        pass
+                                elif part.get_content_type() == "text/html":
+                                    try:
+                                        body = part.get_payload(decode=True).decode('utf-8', errors='ignore')
+                                        # Remove HTML tags for plain text
+                                        import re
+                                        body = re.sub('<[^<]+?>', '', body)
+                                        break
+                                    except:
+                                        pass
+                        else:
+                            try:
+                                body = msg.get_payload(decode=True).decode('utf-8', errors='ignore')
+                            except:
+                                body = str(msg.get_payload())
+                        
+                        emails.append({
+                            "id": email_id.decode('utf-8'),
+                            "subject": subject,
+                            "from": from_addr,
+                            "to": to_addr,
+                            "body": body[:500] + "..." if len(body) > 500 else body,
+                            "received": date,
+                            "has_attachments": any(part.get_filename() for part in msg.walk() if part.get_filename())
+                        })
+                        
+                    except Exception as e:
+                        # Skip problematic emails but continue processing others
+                        continue
+                
+                return emails
+                
+        except Exception as e:
+            # If IMAP fails, return empty list with error info
+            print(f"IMAP Error: {str(e)}")
+            return []
     
     @tool
     def search_emails(
