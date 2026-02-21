@@ -106,6 +106,34 @@ async def send_email(
             }
         else:
             raise HTTPException(status_code=502, detail=message)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/email/emails/unread")
+async def get_unread_emails():
+    """Get unread emails for processing"""
+    try:
+        from src.agents.tools import get_unread_emails
+        from src.core.config import settings
+        
+        # Use real email fetching tool
+        emails = get_unread_emails.invoke({
+            "limit": 10,
+            "folder": "inbox",
+            "imap_server": settings.imap_server,
+            "username": settings.email_user or "your-email@gmail.com",
+            "password": settings.email_password or "your-app-password"
+        })
+        
+        return {
+            "success": True,
+            "emails": emails,
+            "total": len(emails),
+            "source": "real_imap"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching emails: {str(e)}")
     except HTTPException:
         raise
     except Exception as e:

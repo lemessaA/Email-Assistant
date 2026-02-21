@@ -1,0 +1,12 @@
+{
+  "content": "Subject: Re: ML(machine learning)\n\nDear recipient@example.com,\n\nI hope this email finds you well. I am writing to acknowledge your previous email regarding machine learning and to address the main request or question you had.\n\nTo recap, you were inquiring about [insert main request or question here, if not specified in the original email]. I understand that you would like to discuss this further and explore possible solutions.\n\nHere are the next steps we can take:\n\n* I will provide you with a detailed overview of our machine learning capabilities and how they can be applied to your specific needs.\n* We will schedule a meeting to discuss the implementation of machine learning in your project.\n* I will also provide you with a list of recommended resources and tools that can aid in the development and deployment of machine learning models.\n\nPlease let me know if these next steps align with your expectations, and if there is anything else you would like to add or discuss.\n\nThank you for your patience and understanding. I look forward to hearing back from you soon.\n\nBest regards,\n\n[Your Name]",
+  "metadata": {
+    "subject": "ML(machine learning)",
+    "to_emails": [
+      "recipient@example.com"
+    ],
+    "from_email": "user@example.com"
+  },
+  "created_at": "2026-02-22T00:12:56.083430",
+  "draft_id": "draft_20260222_001256"
+}

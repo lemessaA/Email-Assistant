@@ -46,6 +46,12 @@ class Settings(BaseSettings):
     smtp_username: Optional[str] = None
     smtp_password: Optional[str] = None
     
+    # IMAP Configuration for Email Processing
+    imap_server: str = "imap.gmail.com"
+    imap_port: int = 993
+    email_user: Optional[str] = None
+    email_password: Optional[str] = None
+    
     # Database
     database_url: str = "sqlite:///./email_assistant.db"
     redis_url: str = "redis://localhost:6379/0"

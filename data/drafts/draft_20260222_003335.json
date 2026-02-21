@@ -1,0 +1,12 @@
+{
+  "content": "Subject: Meeting Request Confirmation\n\nDear Client,\n\nI acknowledge receipt of your email regarding the meeting scheduled for tomorrow at 2pm. I appreciate your confirmation request.\n\nTo confirm, the meeting is still scheduled for tomorrow at 2pm. If this time no longer works for you, please let me know as soon as possible so we can discuss alternative arrangements.\n\nNext steps:\n- I will ensure that all necessary materials are prepared for the meeting.\n- I will send a reminder email to confirm the meeting details the day before.\n\nPlease do not hesitate to contact me if you have any further questions or concerns.\n\nBest regards,\n[Your Name]",
+  "metadata": {
+    "subject": "Meeting Request Confirmation",
+    "to_emails": [
+      "user@company.com"
+    ],
+    "from_email": "client@company.com"
+  },
+  "created_at": "2026-02-22T00:33:35.406075",
+  "draft_id": "draft_20260222_003335"
+}

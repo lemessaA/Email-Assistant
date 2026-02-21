@@ -1,0 +1,12 @@
+{
+  "content": "Subject: New Project Inquiry\n\nDear client@external-company.com,\n\nThank you for reaching out to us about your interest in our services. We appreciate your consideration and would be happy to discuss a potential project with you.\n\nTo move forward, we would like to schedule a call to discuss the details of your project. We have availability next week on the following dates and times:\n\n- Monday, February 22nd: 9:00 AM - 10:00 AM\n- Monday, February 22nd: 10:00 AM - 11:00 AM\n- Monday, February 22nd: 11:00 AM - 12:00 PM\n- Monday, February 22nd: 2:00 PM - 3:00 PM\n- Monday, February 22nd: 3:00 PM - 4:00 PM\n- Monday, February 22nd: 4:00 PM - 5:00 PM\n- Monday, February 22nd: 5:00 PM - 5:00 PM\n\nPlease let us know which time slot works best for you, and we will send over a calendar invite to confirm the details.\n\nWe look forward to speaking with you soon.\n\nBest regards,\nSales Team\nsales@company.com",
+  "metadata": {
+    "subject": "New Project Inquiry",
+    "to_emails": [
+      "sales@company.com"
+    ],
+    "from_email": "client@external-company.com"
+  },
+  "created_at": "2026-02-22T00:29:59.893383",
+  "draft_id": "draft_20260222_002959"
+}

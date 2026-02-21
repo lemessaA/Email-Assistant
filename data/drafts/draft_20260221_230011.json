@@ -1,0 +1,12 @@
+{
+  "content": "Subject: Re: lemessa\n\nDear recipient@example.com,\n\nI acknowledge receipt of your email and appreciate your interest in scheduling a meeting to discuss the topic. I understand that you would like to schedule a meeting to discuss [insert topic here, if provided].\n\nTo confirm, I would like to schedule a meeting with you to discuss the following:\n\n* Acknowledge the email and understand the main request or question\n* Address the main request or question and provide any necessary clarification\n* Provide clear next steps, if needed, to ensure a productive discussion\n\nBased on my availability, I have the following time slots available on February 21, 2026:\n\n* 09:00 - 10:00\n* 10:00 - 11:00\n* 11:00 - 12:00\n* 14:00 - 15:00\n* 15:00 - 16:00\n* 16:00 - 17:00\n* 17:00 - 17:00\n\nPlease let me know which time slot works best for you, and I will send over a formal meeting invitation.\n\nThank you for your time, and I look forward to hearing back from you.\n\nBest regards,\n[Your Name]",
+  "metadata": {
+    "subject": "lemessa",
+    "to_emails": [
+      "recipient@example.com"
+    ],
+    "from_email": "user@example.com"
+  },
+  "created_at": "2026-02-21T23:00:11.319624",
+  "draft_id": "draft_20260221_230011"
+}

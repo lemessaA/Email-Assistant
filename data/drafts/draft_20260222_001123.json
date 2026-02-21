@@ -1,0 +1,12 @@
+{
+  "content": "Since there is no original email provided, I'll create a sample email and response.\n\n**Original Email:**\n\nSubject: Meeting Request for Project Update\n\nFrom: user@example.com\n\nBody:\nHi John,\n\nI hope this email finds you well. I am reaching out to schedule a meeting to discuss the current status of the Smith project. We have made significant progress, but there are a few issues that need to be addressed. I would like to schedule a meeting for this week to go over the details.\n\nPlease let me know a time that works for you.\n\nBest regards,\nJane\n\n**Gathered Context:**\n\n{'search_results': [], 'web_search': [], 'unread_emails': [], 'email_search': []}\n\n**Response:**\n\nSubject: Re: Meeting Request for Project Update\n\nFrom: john@example.com\n\nBody:\nHi Jane,\n\nThank you for reaching out. I would be happy to discuss the Smith project with you. I have a few availability slots this week that might work for you. How about Wednesday at 2 PM or Thursday at 10 AM? Please let me know which one works best for you.\n\nLooking forward to hearing back from you.\n\nBest regards,\nJohn",
+  "metadata": {
+    "subject": "",
+    "to_emails": [
+      "recipient@example.com"
+    ],
+    "from_email": "user@example.com"
+  },
+  "created_at": "2026-02-22T00:11:23.838117",
+  "draft_id": "draft_20260222_001123"
+}
