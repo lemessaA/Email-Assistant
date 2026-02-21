@@ -1,7 +1,7 @@
 {
   "dependencies": ["."],
   "graphs": {
-    "email-graph": "./src/agents/email_agent.py:EmailAssistantAgent:_build_agent_graph"
+    "email-graph": "./src/agents/email_agent.py:email_graph"
   },
   "env": ".env"
 }

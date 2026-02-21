@@ -11,7 +11,7 @@ load_dotenv()
 
 
 
-from .tools import (
+from src.agents.tools import (
     send_email,
     draft_email,
     get_unread_emails,
@@ -219,3 +219,7 @@ class EmailAssistantAgent:
             "analysis": result["metadata"].get("analysis"),
             "context_used": result["context"]
         }
+
+
+# Export a module-level graph instance for LangGraph dev server
+email_graph = EmailAssistantAgent()._build_agent_graph()

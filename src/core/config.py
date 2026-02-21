@@ -1,14 +1,25 @@
-from pydantic_settings import BaseSettings
+import os
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional, List
 from enum import Enum
+
+# Resolve .env path from project root (parent of src/)
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+_ENV_FILE = os.path.join(_ROOT, ".env")
+
 
 class Environment(str, Enum):
     LOCAL = "local"
     STAGING = "staging"
     PRODUCTION = "production"
 
+
 class Settings(BaseSettings):
-    model_config = {"extra": "ignore"}
+    model_config = SettingsConfigDict(
+        extra="ignore",
+        env_file=_ENV_FILE,
+        env_file_encoding="utf-8",
+    )
     
     # App
     APP_NAME: str = "Email Assistant AI"
