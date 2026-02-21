@@ -115,74 +115,185 @@ class EmailAssistantAgent:
         return state
     
     def _gather_context(self, state: AgentState) -> AgentState:
-        """Gather additional context needed for response"""
-        messages = state["messages"]
+        """Gather additional context using all relevant tools."""
         email_data = state["email_data"]
-        
-        # Check if we need external information
+        query = (email_data.get("subject", "") + " " + email_data.get("body", "")).strip() or "email context"
+        analysis = state["metadata"].get("analysis", "").lower()
+
+        # 1. Internal knowledge search
+        try:
+            state["context"]["search_results"] = internal_knowledge_search.invoke({
+                "query": query,
+                "max_results": 5,
+            })
+        except Exception as e:
+            state["context"]["search_results"] = [{"error": str(e)}]
+
+        # 2. Web search (when we need external info)
         if self._needs_external_info(state):
-            # Use search tools to gather context
-            search_tool = internal_knowledge_search
-            search_results = search_tool.invoke({
-                "query": email_data.get("subject", "") + " " + email_data.get("body", ""),
-                "max_results": 5
+            try:
+                state["context"]["web_search"] = web_search.invoke({
+                    "query": query,
+                    "max_results": 5,
+                })
+            except Exception as e:
+                state["context"]["web_search"] = [{"error": str(e)}]
+
+        # 3. Calendar availability (if meeting/scheduling mentioned)
+        if "meeting" in analysis or "schedule" in analysis:
+            try:
+                state["context"]["availability"] = check_availability.invoke({
+                    "duration": 60,
+                    "date": datetime.now().strftime("%Y-%m-%d"),
+                })
+            except Exception as e:
+                state["context"]["availability"] = [{"error": str(e)}]
+
+        # 4. Unread emails (inbox context)
+        try:
+            state["context"]["unread_emails"] = get_unread_emails.invoke({
+                "limit": 5,
+                "folder": "inbox",
             })
-            state["context"]["search_results"] = search_results
-        
-        # Check calendar if scheduling is involved
-        if "meeting" in state["metadata"].get("analysis", "").lower():
-            calendar_tool = check_availability
-            availability = calendar_tool.invoke({
-                "duration": 60,
-                "date": datetime.now().date()
+        except Exception as e:
+            state["context"]["unread_emails"] = []
+
+        # 5. Search emails
+        try:
+            state["context"]["email_search"] = search_emails.invoke({
+                "query": query,
+                "limit": 5,
             })
-            state["context"]["availability"] = availability
-        
+        except Exception as e:
+            state["context"]["email_search"] = []
+
+        # 6. Read attachments if paths provided
+        attachments = email_data.get("attachments") or []
+        if isinstance(attachments, list):
+            attachment_contents = []
+            for att in attachments:
+                path = att.get("path") or att.get("file_path") if isinstance(att, dict) else att
+                if isinstance(path, str):
+                    try:
+                        content = read_attachment.invoke({"file_path": path})
+                        attachment_contents.append({"path": path, "content_preview": (content or "")[:500]})
+                    except Exception as e:
+                        attachment_contents.append({"path": path, "error": str(e)})
+            if attachment_contents:
+                state["context"]["attachment_contents"] = attachment_contents
+
         return state
     
     def _generate_response(self, state: AgentState) -> AgentState:
-        """Generate email response using gathered context"""
+        """Generate email response using gathered context (including tool outputs)."""
         messages = state["messages"]
         email_data = state["email_data"]
         context = state["context"]
-        
+        draft_guidance = context.get("draft_prompt") or ""
+
         response_prompt = ChatPromptTemplate.from_messages([
             SystemMessage(content="You are a professional email assistant. Write a clear, concise, and appropriate response."),
             MessagesPlaceholder(variable_name="chat_history"),
             HumanMessage(content=f"""
             Original Email:
             Subject: {email_data.get('subject')}
-            From: {email_data.get('from')}
+            From: {email_data.get('from_email', email_data.get('from', ''))}
             Body: {email_data.get('body')}
-            
-            Context: {context}
-            
+
+            Gathered context (search, calendar, attachments, etc.): {context}
+
+            {f"Draft guidance from preparation: {draft_guidance}" if draft_guidance else ""}
+
             Write a response that addresses all points in the original email.
             """)
         ])
-        
+
         chain = response_prompt | self.llm
         response = chain.invoke({"chat_history": messages})
-        
+
         state["metadata"]["draft_response"] = response.content
         return state
     
     def _execute_actions(self, state: AgentState) -> AgentState:
-        """Execute required actions (send emails, schedule meetings, etc.)"""
-        # This would execute tools based on analysis
-        # For example: send confirmation email, schedule meeting, etc.
+        """Execute required actions using tools: schedule_meeting, draft_email."""
+        email_data = state["email_data"]
+        analysis = state["metadata"].get("analysis", "") or ""
+        actions_taken = state["metadata"].get("actions", []) or []
+
+        # Schedule meeting if analysis suggests it
+        if any(kw in analysis.lower() for kw in ["schedule", "meeting", "book", "calendar"]):
+            try:
+                to_emails = email_data.get("to_emails") or ["recipient@example.com"]
+                recipient = to_emails[0] if to_emails else "recipient@example.com"
+                schedule_result = schedule_meeting.invoke({
+                    "attendees": to_emails if isinstance(to_emails, list) else [recipient],
+                    "subject": email_data.get("subject", "Meeting"),
+                    "duration": 60,
+                    "preferred_times": [datetime.now().strftime("%Y-%m-%dT%H:00")],
+                })
+                actions_taken.append({"tool": "schedule_meeting", "result": schedule_result})
+            except Exception as e:
+                actions_taken.append({"tool": "schedule_meeting", "error": str(e)})
+
+        # Draft email (key points from analysis) for later use in generate_response
+        try:
+            to_emails = email_data.get("to_emails") or ["recipient@example.com"]
+            recipient = to_emails[0] if to_emails else "recipient@example.com"
+            key_points = [
+                "Acknowledge the email",
+                "Address the main request or question",
+                "Provide clear next steps if needed",
+            ]
+            draft_prompt = draft_email.invoke({
+                "recipient": recipient,
+                "subject": email_data.get("subject", "Reply"),
+                "key_points": key_points,
+                "tone": "professional",
+            })
+            state["context"]["draft_prompt"] = draft_prompt
+        except Exception as e:
+            state["context"]["draft_prompt"] = f"Draft preparation note: {e}"
+
+        state["metadata"]["actions"] = actions_taken
         return state
     
     def _review_and_finalize(self, state: AgentState) -> AgentState:
-        """Review and finalize the response"""
-        # Add final review step before sending
-        review_prompt = """Review this email response for:
-        1. Tone and professionalism
-        2. Completeness
-        3. Accuracy
-        4. Action items clearly stated
-        """
-        # Implementation would include final checks
+        """Review and finalize; save draft via save_draft; optionally send via send_email."""
+        email_data = state["email_data"]
+        draft = state["metadata"].get("draft_response") or ""
+        actions_taken = state["metadata"].get("actions", []) or []
+
+        # Save draft using save_draft tool
+        if draft.strip():
+            try:
+                save_result = save_draft.invoke({
+                    "content": draft,
+                    "metadata": {
+                        "subject": email_data.get("subject"),
+                        "to_emails": email_data.get("to_emails"),
+                        "from_email": email_data.get("from_email"),
+                    },
+                })
+                actions_taken.append({"tool": "save_draft", "result": save_result})
+            except Exception as e:
+                actions_taken.append({"tool": "save_draft", "error": str(e)})
+
+        # Optionally send email when request has auto_send (e.g. from API/UI)
+        if email_data.get("auto_send") and draft.strip():
+            to_list = email_data.get("to_emails") or []
+            if to_list and email_data.get("from_email"):
+                try:
+                    send_result = send_email.invoke({
+                        "to": to_list if isinstance(to_list, list) else [to_list],
+                        "subject": email_data.get("subject", "Reply"),
+                        "body": draft,
+                        "cc": email_data.get("cc_emails") or None,
+                    })
+                    actions_taken.append({"tool": "send_email", "result": send_result})
+                except Exception as e:
+                    actions_taken.append({"tool": "send_email", "error": str(e)})
+
+        state["metadata"]["actions"] = actions_taken
         return state
     
     def _should_execute_actions(self, state: AgentState) -> str:
