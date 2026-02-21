@@ -282,6 +282,26 @@ class EmailAssistantUI:
             with col2:
                 st.metric("⏱️ Avg Time", "45s")
             
+            # Data Management
+            st.markdown("---")
+            st.subheader("🗂️ Data Management")
+            
+            if st.button("🗑️ Clear All Data", type="secondary", use_container_width=True, help="Clear all conversation and email history"):
+                if st.session_state.conversation or st.session_state.email_history:
+                    st.session_state.conversation.clear()
+                    st.session_state.email_history.clear()
+                    st.success("✅ All data cleared!")
+                    st.rerun()
+                else:
+                    st.info("No data to clear.")
+            
+            # Show data counts
+            col_data1, col_data2 = st.columns(2)
+            with col_data1:
+                st.metric("💬 Messages", len(st.session_state.conversation))
+            with col_data2:
+                st.metric("📧 History", len(st.session_state.email_history))
+            
             return {
                 "llm_model": llm_model,
                 "from_email": email_user,
@@ -406,10 +426,21 @@ class EmailAssistantUI:
             
             # Show conversation
             if st.session_state.conversation:
-                st.subheader("Conversation")
+                col_conv, col_clear = st.columns([4, 1])
+                with col_conv:
+                    st.subheader("💬 Conversation")
+                with col_clear:
+                    if st.button("🗑️", key="clear_conversation", help="Clear conversation"):
+                        st.session_state.conversation.clear()
+                        st.success("✅ Conversation cleared!")
+                        st.rerun()
+                
                 for msg in st.session_state.conversation[-3:]:
                     with st.chat_message(msg["role"]):
                         st.write(msg["content"])
+                
+                if len(st.session_state.conversation) > 3:
+                    st.caption(f"Showing last 3 of {len(st.session_state.conversation)} messages")
         
         # Send button
         col_send1, col_send2, _ = st.columns([1, 1, 2])
@@ -499,14 +530,43 @@ class EmailAssistantUI:
         st.subheader("Email History")
 
         if st.session_state.email_history:
+            # Delete options
+            col1, col2, col3 = st.columns([2, 1, 1])
+            with col1:
+                st.write(f"**Total Emails:** {len(st.session_state.email_history)}")
+            with col2:
+                if st.button("🗑️ Clear All", type="secondary", use_container_width=True):
+                    if st.session_state.email_history:
+                        st.session_state.email_history.clear()
+                        st.success("✅ All email history cleared!")
+                        st.rerun()
+            with col3:
+                if st.button("📥 Export", use_container_width=True):
+                    self.export_email_history()
+            
+            st.markdown("---")
+            
             df = pd.DataFrame(st.session_state.email_history)
             display_cols = [c for c in ['date', 'to', 'subject', 'status'] if c in df.columns]
             if display_cols:
-                st.dataframe(df[display_cols], use_container_width=True)
+                # Add delete column to dataframe
+                df_with_delete = df[display_cols].copy()
+                
+                # Display with delete buttons
+                for i, row in df_with_delete.iterrows():
+                    col1, col2 = st.columns([10, 1])
+                    with col1:
+                        st.write(f"**{row.get('date', 'N/A')}** - {row.get('to', 'N/A')} - {row.get('subject', 'N/A')}")
+                    with col2:
+                        if st.button("🗑️", key=f"delete_{i}"):
+                            st.session_state.email_history.pop(i)
+                            st.success("✅ Email deleted from history!")
+                            st.rerun()
+                    st.markdown("---")
 
             # Analytics (only if we have the required columns)
             if 'sentiment_score' in df.columns and 'date' in df.columns:
-                st.subheader("Analytics")
+                st.subheader("📊 Analytics")
                 col1, col2 = st.columns(2)
                 with col1:
                     st.line_chart(df.set_index('date')[['sentiment_score']])
@@ -515,6 +575,25 @@ class EmailAssistantUI:
                         st.bar_chart(df['response_time_minutes'].value_counts())
         else:
             st.info("No email history yet.")
+    
+    def export_email_history(self):
+        """Export email history to CSV"""
+        try:
+            import io
+            df = pd.DataFrame(st.session_state.email_history)
+            if not df.empty:
+                csv = df.to_csv(index=False)
+                st.download_button(
+                    label="📥 Download CSV",
+                    data=csv,
+                    file_name=f"email_history_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+            else:
+                st.warning("No data to export.")
+        except Exception as e:
+            st.error(f"Error exporting data: {str(e)}")
     
     def improve_tone(self, body: str, tone: str) -> None:
         """Improve email tone using AI"""
