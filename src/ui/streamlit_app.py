@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import json
+import time
 from typing import Dict, Any, List
 import pandas as pd
 from datetime import datetime
@@ -488,44 +489,162 @@ class EmailAssistantUI:
                     st.json(analysis)
     
     def render_process_tab(self, config: Dict[str, Any]):
-        st.subheader("Process Incoming Emails")
+        st.subheader("🔄 Real-Time Email Processing")
         
-        # Connect to email account
-        with st.expander("Email Account Setup"):
-            email_provider = st.selectbox(
-                "Provider",
-                ["Gmail", "Outlook", "IMAP", "Other"]
-            )
-            email_address = st.text_input("Email Address")
-            app_password = st.text_input("App Password", type="password")
+        # Auto-refresh controls
+        col1, col2, col3 = st.columns([2, 1, 1])
+        with col1:
+            auto_refresh = st.checkbox("🔄 Auto-refresh", value=True, help="Automatically check for new emails")
+        with col2:
+            refresh_interval = st.selectbox("Interval", [30, 60, 300], index=1, help="Refresh interval in seconds")
+        with col3:
+            if st.button("🔍 Check Now", use_container_width=True):
+                st.session_state.last_check = 0
+                st.rerun()
+        
+        # Connection status
+        if auto_refresh:
+            # Auto-refresh logic
+            if 'last_check' not in st.session_state:
+                st.session_state.last_check = 0
             
-            if st.button("Connect"):
-                st.success(f"Connected to {email_address}")
+            current_time = time.time()
+            if current_time - st.session_state.last_check > refresh_interval:
+                st.session_state.last_check = current_time
+                with st.spinner("🔍 Checking for new emails..."):
+                    emails = self.fetch_unread_emails(config)
+                    st.session_state.current_emails = emails
+                    st.session_state.new_email_count = len(emails)
+                    
+                    # Show notification if new emails
+                    if len(emails) > 0:
+                        st.success(f"📬 Found {len(emails)} new email(s)!")
+                        st.balloons()
+                    else:
+                        st.info("📭 No new emails")
+        else:
+            st.info("🔄 Auto-refresh is disabled. Click 'Check Now' to manually check.")
         
-        # Process unread emails
-        if st.button("🔄 Process Unread Emails"):
-            with st.spinner("Fetching and processing emails..."):
-                emails = self.fetch_unread_emails(config)
-                
-                for email in emails:
-                    with st.container():
+        # Email account setup
+        with st.expander("🔧 Email Account Setup"):
+            col1, col2 = st.columns(2)
+            with col1:
+                email_provider = st.selectbox(
+                    "Provider",
+                    ["Gmail", "Outlook", "IMAP", "Other"],
+                    key="email_provider"
+                )
+                imap_server = st.selectbox(
+                    "IMAP Server",
+                    ["imap.gmail.com", "outlook.office365.com", "imap.mail.yahoo.com", "custom"],
+                    key="imap_server"
+                )
+            with col2:
+                email_address = st.text_input("Email Address", key="email_address")
+                app_password = st.text_input("App Password", type="password", key="app_password")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🔗 Connect & Test", use_container_width=True):
+                    # Test connection
+                    test_config = {
+                        "email_user": email_address,
+                        "email_password": app_password,
+                        "imap_server": imap_server
+                    }
+                    test_emails = self.fetch_unread_emails(test_config)
+                    if test_emails is not None:
+                        st.success(f"✅ Successfully connected to {email_address}")
+                        st.session_state.email_config = test_config
+                    else:
+                        st.error("❌ Connection failed. Check credentials.")
+            
+            with col2:
+                if st.button("💾 Save Config", use_container_width=True):
+                    st.session_state.email_config = {
+                        "email_user": email_address,
+                        "email_password": app_password,
+                        "imap_server": imap_server
+                    }
+                    st.success("💾 Configuration saved!")
+        
+        # Display current emails
+        if 'current_emails' in st.session_state and st.session_state.current_emails:
+            st.subheader(f"📧 Current Unread Emails ({len(st.session_state.current_emails)})")
+            
+            for i, email in enumerate(st.session_state.current_emails):
+                with st.container():
+                    # Email header with timestamp
+                    col_email, col_status = st.columns([4, 1])
+                    
+                    with col_email:
+                        # Highlight new emails
+                        is_new = i < st.session_state.get('new_email_count', len(st.session_state.current_emails))
+                        new_indicator = "🔥 NEW" if is_new else ""
+                        
                         st.markdown(f"""
-                        <div class="email-card">
-                            <strong>From:</strong> {email['from']}<br>
-                            <strong>Subject:</strong> {email['subject']}<br>
-                            <small>{email.get('received', email.get('date', 'No date'))}</small>
+                        <div class="email-card" style="border-left: 4px solid {'#ff6b6b' if is_new else '#28a745'};">
+                            <div style="display: flex; justify-content: space-between; align-items: start;">
+                                <div>
+                                    <strong>{new_indicator} 📧 From:</strong> {email['from']}<br>
+                                    <strong>📋 Subject:</strong> {email['subject']}<br>
+                                    <small>🕒 {email.get('received', email.get('date', 'No date'))}</small>
+                                </div>
+                                <div>
+                                    <strong>📊 Priority:</strong> {'High' if 'urgent' in email.get('subject', '').lower() else 'Normal'}
+                                </div>
+                            </div>
+                            <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                                <strong>📝 Body:</strong><br>
+                                <div style="max-height: 200px; overflow-y: auto; padding: 5px; border: 1px solid #dee2e6; border-radius: 3px;">
+                                    {email.get('body', 'No body content')[:400]}{'...' if len(email.get('body', '')) > 400 else ''}
+                                </div>
+                            </div>
                         </div>
                         """, unsafe_allow_html=True)
-                        
-                        # Auto-response button
-                        if st.button(f"Auto-respond #{email['id']}", key=email['id']):
+                    
+                    with col_status:
+                        st.write("**Actions:**")
+                        # Quick action buttons
+                        if st.button(f"💬", key=f"respond_{email['id']}", help="Generate AI Response"):
                             response = self.generate_auto_response(email)
-                            st.markdown(f"""
-                            <div class="response-card">
-                                {response}
-                            </div>
-                            """, unsafe_allow_html=True)
-                        st.rerun()
+                            st.session_state[f"response_{email['id']}"] = response
+                        
+                        if st.button(f"📌", key=f"pin_{email['id']}", help="Pin for later"):
+                            st.session_state[f"pinned_{email['id']}"] = True
+                        
+                        if st.button(f"🗑️", key=f"delete_{email['id']}", help="Mark as processed"):
+                            st.session_state[f"processed_{email['id']}"] = True
+                    
+                    # Show response if it exists
+                    if f"response_{email['id']}" in st.session_state:
+                        st.markdown(f"""
+                        <div class="response-card" style="margin-top: 10px; padding: 15px; background: #e8f5e8; border-left: 4px solid #28a745;">
+                            <strong>🤖 AI Response:</strong><br>
+                            {st.session_state[f"response_{email['id']}"]}
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    # Show processed status
+                    if f"processed_{email['id']}" in st.session_state:
+                        st.success(f"✅ Email #{email['id']} marked as processed")
+                    
+                    st.markdown("---")
+        else:
+            st.info("📭 No emails to display. Click 'Check Now' to fetch emails.")
+        
+        # Real-time status bar
+        if auto_refresh:
+            st.markdown("---")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("🔄 Auto-refresh", "Active")
+            with col2:
+                last_check_time = st.session_state.get('last_check', 0)
+                st.metric("⏰ Last Check", time.strftime('%H:%M:%S', time.localtime(last_check_time)))
+            with col3:
+                email_count = st.session_state.get('new_email_count', 0)
+                st.metric("📧 Unread", email_count)
                         
     
     def render_history_tab(self):
