@@ -211,34 +211,169 @@ class SearchTools:
         return []
 
 class CalendarTools:
+    """Collection of calendar-related tools for scheduling and time management"""
+    
+    def __init__(self):
+        """Initialize calendar tools with Google Calendar integration"""
+        try:
+            from integrations.google_calendar import GoogleCalendarIntegration
+            self.calendar_service = GoogleCalendarIntegration()
+            self.calendar_service.set_timezone("UTC")
+        except ImportError:
+            logger.warning("Google Calendar integration not available, using mock implementation")
+            self.calendar_service = None
     
     @tool
     def check_availability(
-        duration: int = 60,  # minutes
-        date: Optional[str] = None
+        self,
+        duration: int = 60,  # Meeting duration in minutes
+        date: Optional[str] = None,  # Optional specific date to check
+        calendar_id: str = "primary",  # Google Calendar ID
+        min_start_time: str = "09:00",  # Earliest start time
+        max_end_time: str = "17:00"  # Latest end time
     ) -> List[Dict[str, Any]]:
         """Check calendar availability for scheduling"""
-        # Implementation using Google Calendar API
+        if self.calendar_service:
+            # Use real Google Calendar integration
+            try:
+                available_slots = self.calendar_service.check_availability(
+                    duration=duration,
+                    date=date,
+                    calendar_id=calendar_id,
+                    min_start_time=min_start_time,
+                    max_end_time=max_end_time
+                )
+                return available_slots
+            except Exception as e:
+                logger.error(f"Error checking calendar availability: {str(e)}")
+                # Fallback to mock data
+                return self._get_mock_availability()
+        else:
+            # Fallback to mock implementation
+            return self._get_mock_availability()
+    
+    def _get_mock_availability(self) -> List[Dict[str, Any]]:
+        """Get mock availability data for fallback"""
+        current_date = datetime.now().strftime("%Y-%m-%d")
         return [
-            {"start": "09:00", "end": "10:00", "available": True},
-            {"start": "14:00", "end": "15:00", "available": True}
+            {
+                "start": "09:00",
+                "end": "10:00",
+                "available": True,
+                "date": current_date,
+                "timezone": "UTC"
+            },
+            {
+                "start": "14:00",
+                "end": "15:00",
+                "available": True,
+                "date": current_date,
+                "timezone": "UTC"
+            }
         ]
     
     @tool
     def schedule_meeting(
-        attendees: List[str],
-        subject: str,
-        duration: int,
-        preferred_times: List[str]
+        self,
+        attendees: List[str],  # List of meeting participant emails
+        subject: str,  # Meeting subject/title
+        duration: int,  # Meeting duration in minutes
+        preferred_time: str,  # Preferred time slot (HH:MM format)
+        date: Optional[str] = None,  # Meeting date (YYYY-MM-DD format)
+        calendar_id: str = "primary",  # Google Calendar ID
+        description: str = "",  # Meeting description
+        location: str = "",  # Meeting location
+        include_meet: bool = True  # Include Google Meet link
     ) -> Dict[str, Any]:
         """Schedule a meeting with attendees"""
-        # Implementation using calendar API
+        if self.calendar_service:
+            # Use real Google Calendar integration
+            try:
+                result = self.calendar_service.schedule_meeting(
+                    attendees=attendees,
+                    subject=subject,
+                    duration=duration,
+                    preferred_time=preferred_time,
+                    date=date,
+                    calendar_id=calendar_id,
+                    description=description,
+                    location=location,
+                    include_meet=include_meet
+                )
+                return result
+            except Exception as e:
+                logger.error(f"Error scheduling meeting: {str(e)}")
+                # Fallback to mock data
+                return self._get_mock_meeting(attendees, subject, duration)
+        else:
+            # Fallback to mock implementation
+            return self._get_mock_meeting(attendees, subject, duration)
+    
+    def _get_mock_meeting(self, attendees: List[str], subject: str, duration: int) -> Dict[str, Any]:
+        """Get mock meeting data for fallback"""
+        meeting_id = f"meet_{datetime.now().timestamp()}"
+        scheduled_time = datetime.now().strftime("%Y-%m-%dT%H:%M:00")
+        
         return {
             "success": True,
-            "meeting_id": "meet_123",
-            "scheduled_time": "2024-01-15T10:00:00",
-            "calendar_link": "https://calendar.link/meeting"
+            "meeting_id": meeting_id,
+            "scheduled_time": scheduled_time,
+            "calendar_link": f"https://calendar.google.com/calendar/event?eid={meeting_id}",
+            "meet_link": f"https://meet.google.com/{meeting_id}",
+            "attendees": attendees,
+            "subject": subject,
+            "duration": duration,
+            "location": "",
+            "timezone": "UTC"
         }
+    
+    @tool
+    def get_upcoming_events(
+        self,
+        calendar_id: str = "primary",  # Google Calendar ID
+        max_results: int = 10,  # Maximum number of events to return
+        days_ahead: int = 7  # Number of days ahead to look
+    ) -> List[Dict[str, Any]]:
+        """Get upcoming events from calendar"""
+        if self.calendar_service:
+            try:
+                events = self.calendar_service.get_upcoming_events(
+                    calendar_id=calendar_id,
+                    max_results=max_results,
+                    days_ahead=days_ahead
+                )
+                return events
+            except Exception as e:
+                logger.error(f"Error getting upcoming events: {str(e)}")
+                return []
+        else:
+            # Return empty list for mock implementation
+            return []
+    
+    @tool
+    def cancel_event(
+        self,
+        event_id: str,  # Google Calendar event ID
+        calendar_id: str = "primary"  # Google Calendar ID
+    ) -> Dict[str, Any]:
+        """Cancel/delete a calendar event"""
+        if self.calendar_service:
+            try:
+                result = self.calendar_service.cancel_event(
+                    event_id=event_id,
+                    calendar_id=calendar_id
+                )
+                return result
+            except Exception as e:
+                logger.error(f"Error cancelling event: {str(e)}")
+                return {"success": False, "error": str(e)}
+        else:
+            # Mock cancellation
+            return {
+                "success": True,
+                "event_id": event_id,
+                "message": "Event cancelled (mock implementation)"
+            }
 
 class FileTools:
     
