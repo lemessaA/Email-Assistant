@@ -183,31 +183,191 @@ class EmailTools:
         return []
 
 class SearchTools:
+    """Collection of search-related tools for web and internal knowledge base"""
+    
+    def __init__(self):
+        """Initialize search tools with multiple search engines"""
+        try:
+            from integrations.web_search import WebSearchIntegration, SearchEngine
+            self.web_search_service = WebSearchIntegration()
+            self.SearchEngine = SearchEngine
+        except ImportError:
+            logger.warning("Web search integration not available, using mock implementation")
+            self.web_search_service = None
+            self.SearchEngine = None
     
     @tool
-    def web_search(query: str, max_results: int = 5) -> List[Dict[str, Any]]:
-        """Search the web for information"""
-        # Implementation using Serper API or similar
-        try:
-            response = requests.get(
-                f"https://api.serper.dev/search",
-                params={"q": query},
-                headers={"X-API-KEY": "your-api-key"}
-            )
-            data = response.json()
-            return data.get("organic", [])[:max_results]
-        except:
-            # Fallback or error handling
+    def web_search(
+        self,
+        query: str,
+        max_results: int = 5,
+        engine: str = "auto",
+        search_type: str = "general"
+    ) -> List[Dict[str, Any]]:
+        """
+        Search web for information using multiple search engines
+        
+        Args:
+            query: Search query string
+            max_results: Maximum number of results to return
+            engine: Search engine to use (serper, tavily, google, bing, auto)
+            search_type: Type of search (general, ai_context, news, academic)
+        """
+        if self.web_search_service:
+            try:
+                # Convert engine string to enum if specified
+                search_engine = None
+                if engine != "auto" and self.SearchEngine:
+                    try:
+                        search_engine = self.SearchEngine(engine.lower())
+                    except ValueError:
+                        logger.warning(f"Unknown search engine: {engine}, using auto-selection")
+                
+                # Perform search
+                results = self.web_search_service.search(
+                    query=query,
+                    max_results=max_results,
+                    engine=search_engine,
+                    search_type=search_type
+                )
+                
+                logger.info(f"Web search returned {len(results)} results for query: {query[:50]}...")
+                return results
+                
+            except Exception as e:
+                logger.error(f"Web search failed: {str(e)}")
+                return self._get_mock_search_results(query, max_results)
+        else:
+            # Fallback to mock implementation
+            return self._get_mock_search_results(query, max_results)
+    
+    def _get_mock_search_results(self, query: str, max_results: int) -> List[Dict[str, Any]]:
+        """Get mock search results for fallback"""
+        return [
+            {
+                "title": f"Mock result for: {query}",
+                "link": "https://example.com/mock-result",
+                "snippet": f"This is a mock search result for the query: {query}. In production, this would be replaced with real search results from the configured search engine.",
+                "source": "mock",
+                "position": 1
+            }
+        ]
+    
+    @tool
+    def ai_context_search(
+        self,
+        query: str,
+        max_results: int = 3
+    ) -> List[Dict[str, Any]]:
+        """
+        Perform AI-optimized search for email context understanding
+        
+        Args:
+            query: Context query for email understanding
+            max_results: Maximum number of results to return
+        """
+        if self.web_search_service:
+            try:
+                # Use Tavily for AI-optimized search
+                results = self.web_search_service.search(
+                    query=query,
+                    max_results=max_results,
+                    search_type="ai_context"
+                )
+                
+                logger.info(f"AI context search returned {len(results)} results")
+                return results
+                
+            except Exception as e:
+                logger.error(f"AI context search failed: {str(e)}")
+                return []
+        else:
             return []
     
     @tool
+    def news_search(
+        self,
+        query: str,
+        max_results: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Search for recent news related to the query
+        
+        Args:
+            query: News search query
+            max_results: Maximum number of results to return
+        """
+        if self.web_search_service:
+            try:
+                results = self.web_search_service.search(
+                    query=query,
+                    max_results=max_results,
+                    search_type="news"
+                )
+                
+                logger.info(f"News search returned {len(results)} results")
+                return results
+                
+            except Exception as e:
+                logger.error(f"News search failed: {str(e)}")
+                return []
+        else:
+            return []
+    
+    @tool
+    def academic_search(
+        self,
+        query: str,
+        max_results: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Search for academic papers and research
+        
+        Args:
+            query: Academic search query
+            max_results: Maximum number of results to return
+        """
+        if self.web_search_service:
+            try:
+                results = self.web_search_service.search(
+                    query=query,
+                    max_results=max_results,
+                    search_type="academic"
+                )
+                
+                logger.info(f"Academic search returned {len(results)} results")
+                return results
+                
+            except Exception as e:
+                logger.error(f"Academic search failed: {str(e)}")
+                return []
+        else:
+            return []
+    
+    @tool
+    def get_search_stats(self) -> Dict[str, Any]:
+        """Get statistics about available search engines"""
+        if self.web_search_service:
+            try:
+                stats = self.web_search_service.get_search_stats()
+                logger.info(f"Search stats: {stats}")
+                return stats
+            except Exception as e:
+                logger.error(f"Failed to get search stats: {str(e)}")
+                return {"error": str(e)}
+        else:
+            return {"error": "Web search service not available"}
+    
+    @tool
     def internal_knowledge_search(
+        self,
         query: str,
         max_results: int = 5
     ) -> List[Dict[str, Any]]:
         """Search internal knowledge base/documents"""
         # Implementation using vector store
         # This would connect to ChromaDB/FAISS
+        logger.info(f"Internal knowledge search for: {query}")
         return []
 
 class CalendarTools:
