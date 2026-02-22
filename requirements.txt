@@ -49,3 +49,7 @@ numpy>=1.24.0
 # Monitoring
 prometheus-client>=0.18.0
 sentry-sdk>=1.35.0
+
+# Render specific
+requests>=2.31.0
+aiofiles>=23.0.0
