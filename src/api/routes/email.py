@@ -110,19 +110,23 @@ async def send_email(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/emails/unread")
-async def get_unread_emails():
+async def get_unread_emails(
+    email_user: Optional[str] = None,
+    email_password: Optional[str] = None,
+    imap_server: Optional[str] = None
+):
     """Get unread emails for processing"""
     try:
         from src.agents.tools import EmailTools
         from src.core.config import settings
         
-        # Use real email fetching tool
+        # Use provided credentials or fall back to settings
         emails = EmailTools.get_unread_emails.invoke({
             "limit": 10,
             "folder": "inbox",
-            "imap_server": settings.imap_server,
-            "username": settings.email_user or "your-email@gmail.com",
-            "password": settings.email_password or "your-app-password"
+            "imap_server": imap_server or settings.imap_server,
+            "username": email_user or settings.email_user or "your-email@gmail.com",
+            "password": email_password or settings.email_password or "your-app-password"
         })
         
         return {

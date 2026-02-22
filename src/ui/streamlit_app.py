@@ -199,9 +199,9 @@ if 'email_history' not in st.session_state:
 class EmailAssistantUI:
     def __init__(self):
         try:
-            self.api_url = st.secrets.get("API_URL", "http://localhost:8001")
+            self.api_url = st.secrets.get("API_URL", "http://localhost:8000")
         except Exception:
-            self.api_url = "http://localhost:8001"
+            self.api_url = "http://localhost:8000"
             
     
     def render_sidebar(self):
@@ -526,6 +526,7 @@ class EmailAssistantUI:
                             </div>
                             """, unsafe_allow_html=True)
                         st.rerun()
+                        
     
     def render_history_tab(self):
         st.subheader("Email History")
@@ -742,9 +743,17 @@ class EmailAssistantUI:
     def fetch_unread_emails(self, config: Dict[str, Any]) -> list[Dict[str, Any]]:
         """Fetch unread emails using real API"""
         try:
+            # Prepare parameters with real credentials
+            params = {
+                "email_user": config.get("email_user"),
+                "email_password": config.get("email_password"),
+                "imap_server": config.get("imap_server")
+            }
+            
             # Call the real API to get unread emails
             response = requests.get(
                 f"{self.api_url}/api/v1/email/emails/unread",
+                params=params,
                 timeout=30
             )
             
