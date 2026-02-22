@@ -568,66 +568,186 @@ class EmailAssistantUI:
                     }
                     st.success("💾 Configuration saved!")
         
-        # Display current emails
+        # Email Status Dashboard
+        st.markdown("---")
+        st.subheader("📊 Email Status Dashboard")
+        
+        # Initialize email tracking if not exists
+        if 'email_stats' not in st.session_state:
+            st.session_state.email_stats = {
+                'total_fetched': 0,
+                'total_processed': 0,
+                'total_incoming': 0,
+                'processed_ids': set(),
+                'incoming_ids': set(),
+                'fetched_ids': set()
+            }
+        
+        # Update stats with current emails
+        if 'current_emails' in st.session_state and st.session_state.current_emails:
+            current_ids = set(email['id'] for email in st.session_state.current_emails)
+            
+            # Track incoming (new) emails
+            new_incoming = current_ids - st.session_state.email_stats['fetched_ids']
+            st.session_state.email_stats['incoming_ids'].update(new_incoming)
+            st.session_state.email_stats['total_incoming'] = len(st.session_state.email_stats['incoming_ids'])
+            
+            # Track fetched emails
+            st.session_state.email_stats['fetched_ids'].update(current_ids)
+            st.session_state.email_stats['total_fetched'] = len(st.session_state.email_stats['fetched_ids'])
+        
+        # Display status metrics
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric(
+                "📥 Incoming", 
+                st.session_state.email_stats['total_incoming'],
+                delta=st.session_state.email_stats['total_incoming'] - st.session_state.email_stats.get('last_incoming', 0),
+                delta_color="normal"
+            )
+        with col2:
+            st.metric("📤 Fetched", st.session_state.email_stats['total_fetched'])
+        with col3:
+            st.metric("✅ Processed", st.session_state.email_stats['total_processed'])
+        with col4:
+            pending = st.session_state.email_stats['total_incoming'] - st.session_state.email_stats['total_processed']
+            st.metric("⏳ Pending", pending, delta_color="inverse" if pending > 0 else "normal")
+        
+        # Store last incoming count for delta
+        st.session_state.email_stats['last_incoming'] = st.session_state.email_stats['total_incoming']
+        
+        st.markdown("---")
+        
+        # Display current emails with status
         if 'current_emails' in st.session_state and st.session_state.current_emails:
             st.subheader(f"📧 Current Unread Emails ({len(st.session_state.current_emails)})")
             
             for i, email in enumerate(st.session_state.current_emails):
                 with st.container():
-                    # Email header with timestamp
+                    # Determine email status
+                    email_id = email['id']
+                    is_processed = email_id in st.session_state.email_stats['processed_ids']
+                    is_incoming = email_id in st.session_state.email_stats['incoming_ids']
+                    is_new = i < st.session_state.get('new_email_count', len(st.session_state.current_emails))
+                    
+                    # Status indicators
+                    status_badge = ""
+                    border_color = "#28a745"  # Default green
+                    
+                    if is_processed:
+                        status_badge = "✅ PROCESSED"
+                        border_color = "#6c757d"  # Gray for processed
+                    elif is_incoming and is_new:
+                        status_badge = "🔥 INCOMING"
+                        border_color = "#ff6b6b"  # Red for incoming
+                    elif is_incoming:
+                        status_badge = "📥 FETCHED"
+                        border_color = "#007bff"  # Blue for fetched
+                    else:
+                        status_badge = "📧 UNREAD"
+                        border_color = "#ffc107"  # Yellow for unread
+                    
+                    # Email header with status
                     col_email, col_status = st.columns([4, 1])
                     
                     with col_email:
-                        # Highlight new emails
-                        is_new = i < st.session_state.get('new_email_count', len(st.session_state.current_emails))
-                        new_indicator = "🔥 NEW" if is_new else ""
+                        # Email subject with full display
+                        subject = email.get('subject', 'No Subject')
+                        from_addr = email.get('from', 'No Sender')
+                        received_date = email.get('received', email.get('date', 'No Date'))
                         
                         st.markdown(f"""
-                        <div class="email-card" style="border-left: 4px solid {'#ff6b6b' if is_new else '#28a745'};">
-                            <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div class="email-card" style="border-left: 4px solid {border_color}; background: {'#f8f9fa' if is_processed else 'white'}; margin-bottom: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
                                 <div>
-                                    <strong>{new_indicator} 📧 From:</strong> {email['from']}<br>
-                                    <strong>📋 Subject:</strong> {email['subject']}<br>
-                                    <small>🕒 {email.get('received', email.get('date', 'No date'))}</small>
+                                    <span style="background: {border_color}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;">
+                                        {status_badge}
+                                    </span>
                                 </div>
-                                <div>
-                                    <strong>📊 Priority:</strong> {'High' if 'urgent' in email.get('subject', '').lower() else 'Normal'}
+                                <div style="text-align: right; font-size: 12px; color: #6c757d;">
+                                    <small>🕒 {received_date}</small>
                                 </div>
                             </div>
-                            <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
-                                <strong>📝 Body:</strong><br>
-                                <div style="max-height: 200px; overflow-y: auto; padding: 5px; border: 1px solid #dee2e6; border-radius: 3px;">
-                                    {email.get('body', 'No body content')[:400]}{'...' if len(email.get('body', '')) > 400 else ''}
+                            
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">
+                                <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                                    <strong style="color: #495057;">📧 From:</strong>
+                                    <span style="color: #212529; font-weight: 500;">{from_addr}</span>
+                                </div>
+                                
+                                <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                                    <strong style="color: #495057;">📋 Subject:</strong>
+                                    <span style="color: #212529; font-weight: 500; font-size: 16px;">{subject}</span>
+                                </div>
+                                
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                    <div>
+                                        <strong style="color: #495057;">📊 Priority:</strong>
+                                        <span style="background: {'#dc3545' if 'urgent' in subject.lower() else '#28a745'}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px;">
+                                            {'HIGH' if 'urgent' in subject.lower() else 'Normal'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <strong style="color: #495057;">📎 Attachments:</strong>
+                                        <span style="background: {'#ffc107' if email.get('has_attachments') else '#6c757d'}; color: {'black' if email.get('has_attachments') else 'white'}; padding: 2px 6px; border-radius: 4px; font-size: 11px;">
+                                            {'Yes' if email.get('has_attachments') else 'No'}
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <div style="border-top: 1px solid #dee2e6; padding-top: 10px;">
+                                    <strong style="color: #495057; display: block; margin-bottom: 8px;">📝 Email Content:</strong>
+                                    <div style="background: #ffffff; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.5; color: #212529;">
+                                        {email.get('body', 'No email content available')}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
                         """, unsafe_allow_html=True)
                     
                     with col_status:
                         st.write("**Actions:**")
                         # Quick action buttons
-                        if st.button(f"💬", key=f"respond_{email['id']}", help="Generate AI Response"):
-                            response = self.generate_auto_response(email)
-                            st.session_state[f"response_{email['id']}"] = response
+                        if not is_processed:
+                            if st.button(f"💬", key=f"respond_{email_id}", help="Generate AI Response"):
+                                response = self.generate_auto_response(email)
+                                st.session_state[f"response_{email_id}"] = response
+                            
+                            if st.button(f"📌", key=f"pin_{email_id}", help="Pin for later"):
+                                st.session_state[f"pinned_{email_id}"] = True
+                            
+                            if st.button(f"✅", key=f"process_{email_id}", help="Mark as Processed"):
+                                st.session_state.email_stats['processed_ids'].add(email_id)
+                                st.session_state.email_stats['total_processed'] += 1
+                                st.session_state[f"processed_{email_id}"] = True
+                                st.success(f"✅ Email {email_id} marked as processed!")
+                                st.rerun()
+                        else:
+                            st.success("✅ Processed")
+                            if st.button(f"🔄", key=f"unprocess_{email_id}", help="Mark as Unprocessed"):
+                                st.session_state.email_stats['processed_ids'].discard(email_id)
+                                st.session_state.email_stats['total_processed'] -= 1
+                                if f"processed_{email_id}" in st.session_state:
+                                    del st.session_state[f"processed_{email_id}"]
+                                st.rerun()
                         
-                        if st.button(f"📌", key=f"pin_{email['id']}", help="Pin for later"):
-                            st.session_state[f"pinned_{email['id']}"] = True
-                        
-                        if st.button(f"🗑️", key=f"delete_{email['id']}", help="Mark as processed"):
-                            st.session_state[f"processed_{email['id']}"] = True
+                        if st.button(f"🗑️", key=f"delete_{email_id}", help="Remove from display"):
+                            # Remove from current emails
+                            st.session_state.current_emails = [e for e in st.session_state.current_emails if e['id'] != email_id]
+                            st.success(f"🗑️ Email {email_id} removed from display")
+                            st.rerun()
                     
                     # Show response if it exists
-                    if f"response_{email['id']}" in st.session_state:
+                    if f"response_{email_id}" in st.session_state:
                         st.markdown(f"""
                         <div class="response-card" style="margin-top: 10px; padding: 15px; background: #e8f5e8; border-left: 4px solid #28a745;">
                             <strong>🤖 AI Response:</strong><br>
-                            {st.session_state[f"response_{email['id']}"]}
+                            {st.session_state[f"response_{email_id}"]}
                         </div>
                         """, unsafe_allow_html=True)
                     
                     # Show processed status
-                    if f"processed_{email['id']}" in st.session_state:
-                        st.success(f"✅ Email #{email['id']} marked as processed")
+                    if f"processed_{email_id}" in st.session_state:
+                        st.success(f"✅ Email #{email_id} marked as processed")
                     
                     st.markdown("---")
         else:
