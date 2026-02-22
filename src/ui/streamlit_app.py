@@ -219,12 +219,6 @@ class EmailAssistantUI:
                 placeholder="your-email@gmail.com",
                 help="Required for sending emails. Must match SMTP account.",
             )
-            st.subheader("� Email Configuration")
-            email_user = st.text_input("Email Address", value="your-email@gmail.com", help="Your email address for IMAP access")
-            email_password = st.text_input("App Password", type="password", value="your-app-password", help="App-specific password for email access")
-            imap_server = st.selectbox("Email Provider", ["imap.gmail.com", "outlook.office365.com", "imap.mail.yahoo.com"], index=0, help="Select your email provider's IMAP server")
-            
-            st.markdown("---")
             
             st.subheader("� AI Configuration")
             
@@ -305,14 +299,14 @@ class EmailAssistantUI:
             
             return {
                 "llm_model": llm_model,
-                "from_email": email_user,
+                "from_email":from_email,
                 "tone": tone,
                 "priority": priority,
                 "auto_send": auto_send,
                 "template": templates.get(selected_template, ""),
-                "email_user": email_user,
-                "email_password": email_password,
-                "imap_server": imap_server
+                
+                
+                
             }
     
     def render_main_panel(self, config: Dict[str, Any]):
