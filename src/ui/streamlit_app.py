@@ -8,7 +8,7 @@ from datetime import datetime
 
 # Page config
 st.set_page_config(
-    page_title="Assist me for My email ",
+    page_title="Email Assistant",
     page_icon="✉️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -207,7 +207,7 @@ class EmailAssistantUI:
     
     def render_sidebar(self):
         with st.sidebar:
-            st.markdown('<h2 style="color: #E0E7FF; font-size: 1.5rem; margin-bottom: 1rem;">🤖 AI Control Panel</h2>', unsafe_allow_html=True)
+            st.markdown('<h2 style="color: #E0E7FF; font-size: 1.5rem; margin-bottom: 1rem;">🤖 🔛</h2>', unsafe_allow_html=True)
             st.markdown("---")
             
             # Email Configuration Section
@@ -310,7 +310,7 @@ class EmailAssistantUI:
             }
     
     def render_main_panel(self, config: Dict[str, Any]):
-        st.markdown('<h1 class="main-header ai-glow">🤖 AI Email Assistant</h1>', unsafe_allow_html=True)
+        st.markdown('<h1 class="main-header ai-glow">🤖 Assist Me for My Email </h1>', unsafe_allow_html=True)
         st.markdown('<p style="color: #94A3B8; font-size: 1.1rem; margin-bottom: 2rem;">Intelligent email processing powered by advanced AI</p>', unsafe_allow_html=True)
         
         # Create tabs
