@@ -525,6 +525,7 @@ class EmailAssistantUI:
                                 {response}
                             </div>
                             """, unsafe_allow_html=True)
+                        st.rerun()
     
     def render_history_tab(self):
         st.subheader("Email History")
