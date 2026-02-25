@@ -66,4 +66,12 @@ class Settings(BaseSettings):
     # Rate Limiting
     rate_limit_per_minute: int = 60
 
+    # Guardrails
+    GUARDRAIL_CONFIDENCE_THRESHOLD: float = 0.6
+    GUARDRAIL_AUTO_BLOCK_KEYWORDS: List[str] = []
+    GUARDRAIL_MAX_DRAFT_LENGTH: int = 5000
+
+    # Human-in-the-Loop
+    HITL_AUTO_APPROVE_RISK: str = "low"  # risk levels at/below this skip review
+
 settings = Settings()

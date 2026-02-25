@@ -6,8 +6,13 @@ from langchain_groq import ChatGroq
 import operator
 from datetime import datetime
 from dotenv import load_dotenv
+from loguru import logger
 
 load_dotenv()
+
+from src.guardrails.content_guard import ContentGuard, RiskLevel
+from src.hitl.review_manager import ReviewManager
+from src.core.config import settings
 
 
 
@@ -25,12 +30,30 @@ class AgentState(TypedDict):
     context: Dict[str, Any]
     next_step: str
     metadata: Dict[str, Any]
+    # Guardrail & HITL fields
+    guardrail_result: Optional[Dict[str, Any]]   # Output of ContentGuard.check()
+    requires_human_review: bool                   # True when HITL is needed
+    review_status: Optional[str]                  # pending / approved / rejected
+    review_id: Optional[str]                      # ID in hitl_reviews table
 
 class EmailAssistantAgent:
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
         self.llm = self._initialize_llm()
         self.tools = self._initialize_tools()
+        self.guard = ContentGuard(
+            confidence_threshold=getattr(settings, "GUARDRAIL_CONFIDENCE_THRESHOLD", 0.6),
+            max_draft_length=getattr(settings, "GUARDRAIL_MAX_DRAFT_LENGTH", 5000),
+            auto_block_keywords=getattr(settings, "GUARDRAIL_AUTO_BLOCK_KEYWORDS", []),
+            auto_approve_risk=RiskLevel(
+                getattr(settings, "HITL_AUTO_APPROVE_RISK", "low")
+            ),
+        )
+        self.review_manager = ReviewManager(
+            db_path=getattr(settings, "database_url", "./email_assistant.db").replace(
+                "sqlite:///", ""
+            )
+        )
         self.agent = self._build_agent_graph()
         
     def _initialize_llm(self):
@@ -55,32 +78,55 @@ class EmailAssistantAgent:
         ]
     
     def _build_agent_graph(self):
-        # Define nodes
+        """Build the LangGraph workflow with guardrail and HITL nodes."""
         workflow = StateGraph(AgentState)
-        
-        # Add nodes
+
+        # Core nodes
         workflow.add_node("analyze_email", self._analyze_email)
         workflow.add_node("gather_context", self._gather_context)
         workflow.add_node("generate_response", self._generate_response)
         workflow.add_node("execute_actions", self._execute_actions)
         workflow.add_node("review_and_finalize", self._review_and_finalize)
-        
-        # Define edges
+
+        # Safety nodes (new)
+        workflow.add_node("guardrail_check", self._guardrail_check)
+        workflow.add_node("human_review_gate", self._human_review_gate)
+
+        # Entry point
         workflow.set_entry_point("analyze_email")
+
+        # analyze → gather_context
         workflow.add_edge("analyze_email", "gather_context")
+
+        # gather_context → execute_actions OR generate_response
         workflow.add_conditional_edges(
             "gather_context",
             self._should_execute_actions,
             {
                 "execute": "execute_actions",
-                "respond": "generate_response"
-            }
+                "respond": "generate_response",
+            },
         )
+
+        # execute_actions → generate_response
         workflow.add_edge("execute_actions", "generate_response")
-        workflow.add_edge("generate_response", "review_and_finalize")
+
+        # generate_response → guardrail_check → human_review_gate
+        workflow.add_edge("generate_response", "guardrail_check")
+        workflow.add_edge("guardrail_check", "human_review_gate")
+
+        # human_review_gate → review_and_finalize OR END (awaiting review)
+        workflow.add_conditional_edges(
+            "human_review_gate",
+            self._should_proceed_after_review,
+            {
+                "proceed": "review_and_finalize",
+                "halt": END,
+            },
+        )
+
         workflow.add_edge("review_and_finalize", END)
-        
-        # Compile graph
+
         return workflow.compile()
     
     def _analyze_email(self, state: AgentState) -> AgentState:
@@ -290,10 +336,73 @@ class EmailAssistantAgent:
         state["metadata"]["actions"] = actions_taken
         return state
     
+    def _guardrail_check(self, state: AgentState) -> AgentState:
+        """Run ContentGuard on the generated draft and annotate state."""
+        draft = state["metadata"].get("draft_response", "")
+        confidence = float(state["metadata"].get("confidence_score", 1.0))
+
+        result = self.guard.check(
+            draft=draft,
+            confidence_score=confidence,
+            original_email=state.get("email_data"),
+        )
+
+        state["guardrail_result"] = {
+            "passed": result.passed,
+            "violations": result.violations,
+            "risk_level": result.risk_level.value,
+            "requires_human_review": result.requires_human_review,
+            "details": result.details,
+        }
+        state["requires_human_review"] = result.requires_human_review
+
+        if result.violations:
+            logger.warning(
+                f"Guardrail violations detected [{result.risk_level.value}]: "
+                f"{result.violations}"
+            )
+        else:
+            logger.info("Guardrail check passed — no violations.")
+
+        return state
+
+    def _human_review_gate(self, state: AgentState) -> AgentState:
+        """If review is required, create a review record and halt execution."""
+        if not state.get("requires_human_review"):
+            # All clear — no review needed.
+            state["review_status"] = None
+            state["review_id"] = None
+            return state
+
+        draft = state["metadata"].get("draft_response", "")
+        gr = state.get("guardrail_result", {})
+
+        review_id = self.review_manager.create_review(
+            email_data=state["email_data"],
+            draft=draft,
+            violations=gr.get("violations", []),
+            risk_level=gr.get("risk_level", "medium"),
+        )
+
+        state["review_id"] = review_id
+        state["review_status"] = "pending"
+        state["metadata"]["review_id"] = review_id
+
+        logger.info(
+            f"Email draft queued for human review (review_id={review_id}, "
+            f"risk={gr.get('risk_level')})"
+        )
+        return state
+
+    def _should_proceed_after_review(self, state: AgentState) -> str:
+        """Routing: proceed to finalize if no human review needed, else halt."""
+        if state.get("requires_human_review"):
+            return "halt"
+        return "proceed"
+
     def _should_execute_actions(self, state: AgentState) -> str:
-        """Determine if actions need to be executed before responding"""
+        """Determine if actions need to be executed before responding."""
         analysis = state["metadata"].get("analysis", "")
-        
         if any(action in analysis.lower() for action in ["schedule", "confirm", "book", "send"]):
             return "execute"
         return "respond"
@@ -306,23 +415,33 @@ class EmailAssistantAgent:
         return any(word in analysis.lower() for word in question_words)
     
     async def process_email(self, email_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Main entry point for processing an email"""
+        """Main entry point for processing an email."""
         initial_state: AgentState = {
             "messages": [],
             "email_data": email_data,
             "context": {},
             "next_step": "analyze",
-            "metadata": {}
+            "metadata": {},
+            # Guardrail / HITL defaults
+            "guardrail_result": None,
+            "requires_human_review": False,
+            "review_status": None,
+            "review_id": None,
         }
-        
+
         # Execute the agent graph
         result = await self.agent.ainvoke(initial_state)
-        
+
         return {
             "response": result["metadata"].get("draft_response"),
             "actions_taken": result["metadata"].get("actions", []),
             "analysis": result["metadata"].get("analysis"),
-            "context_used": result["context"]
+            "context_used": result["context"],
+            # Guardrail / HITL metadata
+            "guardrail_result": result.get("guardrail_result"),
+            "requires_human_review": result.get("requires_human_review", False),
+            "review_id": result.get("review_id"),
+            "review_status": result.get("review_status"),
         }
 
 

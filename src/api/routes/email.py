@@ -27,6 +27,11 @@ class EmailResponse(BaseModel):
     actions: List[Dict[str, Any]] = []
     analysis: Optional[Dict[str, Any]] = None
     processing_time: float
+    # Guardrail & HITL fields
+    guardrail_result: Optional[Dict[str, Any]] = None
+    requires_human_review: bool = False
+    review_id: Optional[str] = None
+    review_status: Optional[str] = None
 
 @router.post("/process")
 async def process_email(
@@ -45,7 +50,11 @@ async def process_email(
             draft=result.get("response"),
             actions=result.get("actions_taken", []),
             analysis={"content": result.get("analysis")} if isinstance(result.get("analysis"), str) else result.get("analysis"),
-            processing_time=0.0  # Would calculate actual time
+            processing_time=0.0,
+            guardrail_result=result.get("guardrail_result"),
+            requires_human_review=result.get("requires_human_review", False),
+            review_id=result.get("review_id"),
+            review_status=result.get("review_status"),
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

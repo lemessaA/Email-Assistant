@@ -15,13 +15,15 @@ from enum import Enum
 # Enum for defining workflow states
 class WorkflowState(Enum):
     """Enumeration of possible workflow states"""
-    INITIALIZED = "initialized"  # Workflow has been initialized
-    ANALYZING = "analyzing"  # Email is being analyzed
-    PROCESSING = "processing"  # Email is being processed
-    GENERATING = "generating"  # Response is being generated
-    FINALIZING = "finalizing"  # Response is being finalized
-    COMPLETED = "completed"  # Workflow has completed successfully
-    FAILED = "failed"  # Workflow has failed
+    INITIALIZED = "initialized"      # Workflow has been initialized
+    ANALYZING = "analyzing"          # Email is being analyzed
+    PROCESSING = "processing"        # Email is being processed
+    GENERATING = "generating"        # Response is being generated
+    FINALIZING = "finalizing"        # Response is being finalized
+    COMPLETED = "completed"          # Workflow has completed successfully
+    FAILED = "failed"               # Workflow has failed
+    AWAITING_REVIEW = "awaiting_review"  # Paused pending human decision
+    BLOCKED = "blocked"             # Blocked by critical guardrail violation
 
 # Enum for defining email priorities
 class EmailPriority(Enum):

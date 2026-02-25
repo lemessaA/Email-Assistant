@@ -493,29 +493,51 @@ class EmailAssistantUI:
             refresh_interval = st.selectbox("Interval", [30, 60, 300], index=1, help="Refresh interval in seconds")
         with col3:
             if st.button("🔍 Check Now", use_container_width=True):
-                st.session_state.last_check = 0
-                st.rerun()
+                email_config = st.session_state.get('email_config')
+                if not email_config or not email_config.get('email_user'):
+                    st.warning("Configure your email account first (see Email Account Setup below).")
+                else:
+                    with st.spinner("Fetching emails…"):
+                        emails = self.fetch_unread_emails(email_config)
+                        st.session_state.current_emails = emails
+                        st.session_state.new_email_count = len(emails)
+                        st.session_state.last_check = time.time()
+                        if emails:
+                            st.success(f"📬 Found {len(emails)} email(s)!")
+                        else:
+                            st.info("📭 No new emails found.")
+                    st.rerun()
         
         # Connection status
         if auto_refresh:
             # Auto-refresh logic
             if 'last_check' not in st.session_state:
                 st.session_state.last_check = 0
-            
-            current_time = time.time()
-            if current_time - st.session_state.last_check > refresh_interval:
-                st.session_state.last_check = current_time
-                with st.spinner("🔍 Checking for new emails..."):
-                    emails = self.fetch_unread_emails(config)
-                    st.session_state.current_emails = emails
-                    st.session_state.new_email_count = len(emails)
-                    
-                    # Show notification if new emails
-                    if len(emails) > 0:
-                        st.success(f"📬 Found {len(emails)} new email(s)!")
-                        st.balloons()
-                    else:
-                        st.info("📭 No new emails")
+
+            # Use saved email credentials (from the Account Setup expander)
+            # Fall back gracefully if no credentials have been configured yet.
+            email_config = st.session_state.get('email_config')
+
+            if not email_config or not email_config.get('email_user'):
+                st.warning(
+                    "⚠️ No email account configured. "
+                    "Expand **Email Account Setup** below, enter your credentials, "
+                    "and click **Save Config** to enable auto-fetch."
+                )
+            else:
+                current_time = time.time()
+                if current_time - st.session_state.last_check > refresh_interval:
+                    st.session_state.last_check = current_time
+                    with st.spinner("🔍 Checking for new emails..."):
+                        emails = self.fetch_unread_emails(email_config)
+                        st.session_state.current_emails = emails
+                        st.session_state.new_email_count = len(emails)
+
+                        if len(emails) > 0:
+                            st.success(f"📬 Found {len(emails)} new email(s)!")
+                            st.balloons()
+                        else:
+                            st.info("📭 No new emails found.")
         else:
             st.info("🔄 Auto-refresh is disabled. Click 'Check Now' to manually check.")
         
@@ -745,8 +767,8 @@ class EmailAssistantUI:
                     
                     st.markdown("---")
         else:
-            st.info("📭 No emails to display. Click 'Check Now' to fetch emails.")
-        
+            st.info("📭 No emails to display. Configure your email account above and click 'Check Now'.")
+
         # Real-time status bar
         if auto_refresh:
             st.markdown("---")
@@ -755,10 +777,87 @@ class EmailAssistantUI:
                 st.metric("🔄 Auto-refresh", "Active")
             with col2:
                 last_check_time = st.session_state.get('last_check', 0)
-                st.metric("⏰ Last Check", time.strftime('%H:%M:%S', time.localtime(last_check_time)))
+                st.metric("⏰ Last Check", time.strftime('%H:%M:%S', time.localtime(last_check_time)) if last_check_time else "—")
             with col3:
                 email_count = st.session_state.get('new_email_count', 0)
                 st.metric("📧 Unread", email_count)
+
+        # ---------------------------------------------------------------
+        # 🧑‍⚖️ Human Review Queue (HITL)
+        # ---------------------------------------------------------------
+        st.markdown("---")
+        st.subheader("🧑‍⚖️ Human Review Queue")
+        st.caption("Drafts flagged by the guardrail system that need your approval before sending.")
+
+        try:
+            review_resp = requests.get(f"{self.api_url}/api/v1/review/pending", timeout=10)
+            if review_resp.status_code == 200:
+                pending = review_resp.json()
+                if not pending:
+                    st.success("✅ No pending reviews — all clear!")
+                else:
+                    st.warning(f"⚠️ {len(pending)} draft(s) awaiting review")
+                    for review in pending:
+                        rid = review['review_id']
+                        with st.expander(
+                            f"📧 {review.get('email_subject', 'No Subject')} "
+                            f"| Risk: **{review['risk_level'].upper()}** "
+                            f"| {review['created_at'][:19].replace('T', ' ')}",
+                            expanded=True
+                        ):
+                            st.markdown(f"**From:** {review.get('email_from', 'N/A')}")
+                            if review.get('violations'):
+                                st.error("🚨 Violations detected:")
+                                for v in review['violations']:
+                                    st.markdown(f"- {v}")
+
+                            # Fetch full details for the draft text
+                            det_resp = requests.get(f"{self.api_url}/api/v1/review/{rid}", timeout=10)
+                            if det_resp.status_code == 200:
+                                detail = det_resp.json()
+                                st.markdown("**Generated Draft:**")
+                                edited = st.text_area(
+                                    "Edit before approving (optional)",
+                                    value=detail.get('original_draft', ''),
+                                    height=150,
+                                    key=f"edit_{rid}"
+                                )
+
+                            col_a, col_b, col_c = st.columns(3)
+                            with col_a:
+                                if st.button("✅ Approve", key=f"approve_{rid}", use_container_width=True):
+                                    edited_val = st.session_state.get(f"edit_{rid}", "")
+                                    original = det_resp.json().get('original_draft', '') if det_resp.status_code == 200 else ""
+                                    if edited_val.strip() and edited_val.strip() != original.strip():
+                                        r = requests.post(
+                                            f"{self.api_url}/api/v1/review/{rid}/edit",
+                                            json={"edited_draft": edited_val}, timeout=10
+                                        )
+                                    else:
+                                        r = requests.post(f"{self.api_url}/api/v1/review/{rid}/approve", timeout=10)
+                                    if r.status_code == 200:
+                                        st.success("✅ Approved!")
+                                        st.rerun()
+                                    else:
+                                        st.error(f"Error: {r.text}")
+                            with col_b:
+                                reject_reason = st.text_input("Reject reason", key=f"reason_{rid}", placeholder="Optional reason…")
+                            with col_c:
+                                if st.button("❌ Reject", key=f"reject_{rid}", use_container_width=True):
+                                    r = requests.post(
+                                        f"{self.api_url}/api/v1/review/{rid}/reject",
+                                        json={"reason": st.session_state.get(f"reason_{rid}", "")},
+                                        timeout=10
+                                    )
+                                    if r.status_code == 200:
+                                        st.success("❌ Rejected.")
+                                        st.rerun()
+                                    else:
+                                        st.error(f"Error: {r.text}")
+            else:
+                st.info("Could not load review queue — is the API running?")
+        except requests.exceptions.RequestException:
+            st.info("🔌 Review queue unavailable — start the API server to enable HITL.")
                         
     
     def render_history_tab(self):

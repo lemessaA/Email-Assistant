@@ -7,7 +7,7 @@ from loguru import logger
 
 from src.core.config import settings, Environment
 from src.agents.email_agent import EmailAssistantAgent
-from src.api.routes import email, eval
+from src.api.routes import email, eval, review
 from src.database.connection import init_db
 
 @asynccontextmanager
@@ -39,6 +39,7 @@ app.add_middleware(
 # Include routers
 app.include_router(email.router, prefix="/api/v1/email", tags=["email"])
 app.include_router(eval.router, prefix="/api/v1/eval", tags=["evaluation"])
+app.include_router(review.router, prefix="/api/v1/review", tags=["human-review"])
 
 @app.get("/")
 async def root():
