@@ -49,6 +49,23 @@ st.markdown("""
         box-shadow: 0 4px 20px rgba(16, 185, 129, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1);
         color: #D1FAE5;
     }
+    .reply-card {
+        background: linear-gradient(135deg, #1E1B4B, #312E81);
+        padding: 1.5rem;
+        border-radius: 1rem;
+        margin-top: 0.75rem;
+        border: 1px solid #6366F1;
+        box-shadow: 0 4px 20px rgba(99, 102, 241, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+    .reply-card .stTextArea > div > textarea {
+        min-height: 120px;
+    }
+    .reply-header {
+        color: #C7D2FE;
+        font-weight: 600;
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+    }
     .stTextArea > div > textarea {
         background: linear-gradient(135deg, #1E293B, #0F172A);
         color: #E2E8F0;
@@ -734,6 +751,82 @@ class EmailAssistantUI:
                     # Show processed status
                     if f"processed_{email_id}" in st.session_state:
                         st.success(f"✅ Email #{email_id} marked as processed")
+
+                    # ── AI Reply Section ──────────────────────────────
+                    st.markdown('<div class="reply-card">', unsafe_allow_html=True)
+                    st.markdown('<p class="reply-header">✉️ Reply with AI</p>', unsafe_allow_html=True)
+
+                    # Generate AI draft on button click
+                    col_gen, col_regen = st.columns([1, 1])
+                    with col_gen:
+                        if st.button(
+                            "🤖 Generate AI Reply",
+                            key=f"gen_reply_{email_id}",
+                            use_container_width=True,
+                        ):
+                            with st.spinner("Generating smart reply…"):
+                                draft = self.generate_auto_response(email)
+                                st.session_state[f"reply_draft_{email_id}"] = draft
+                                st.session_state[f"reply_show_{email_id}"] = True
+                    with col_regen:
+                        if st.button(
+                            "🔄 Regenerate",
+                            key=f"regen_reply_{email_id}",
+                            use_container_width=True,
+                            disabled=f"reply_draft_{email_id}" not in st.session_state,
+                        ):
+                            with st.spinner("Regenerating…"):
+                                draft = self.generate_auto_response(email)
+                                st.session_state[f"reply_draft_{email_id}"] = draft
+
+                    # Editable reply area + send button
+                    if st.session_state.get(f"reply_show_{email_id}"):
+                        reply_text = st.text_area(
+                            "Edit your reply before sending",
+                            value=st.session_state.get(f"reply_draft_{email_id}", ""),
+                            height=180,
+                            key=f"reply_area_{email_id}",
+                        )
+
+                        col_send, col_cancel = st.columns([1, 1])
+                        with col_send:
+                            if st.button(
+                                "📤 Send Reply",
+                                key=f"send_reply_{email_id}",
+                                type="primary",
+                                use_container_width=True,
+                            ):
+                                original_subject = email.get("subject", "")
+                                sender = email.get("from", "")
+                                from_email = config.get("from_email", "")
+                                if not from_email or not from_email.strip():
+                                    st.error("Set your sender email in the sidebar first.")
+                                else:
+                                    self.send_reply(
+                                        from_email=from_email,
+                                        to_email=sender,
+                                        subject=original_subject,
+                                        reply_body=reply_text,
+                                    )
+                                    # Mark as processed after sending
+                                    st.session_state.email_stats["processed_ids"].add(email_id)
+                                    st.session_state.email_stats["total_processed"] += 1
+                                    st.session_state[f"processed_{email_id}"] = True
+                                    # Clean up reply state
+                                    for k in [f"reply_draft_{email_id}", f"reply_show_{email_id}"]:
+                                        st.session_state.pop(k, None)
+                                    st.rerun()
+                        with col_cancel:
+                            if st.button(
+                                "❌ Cancel",
+                                key=f"cancel_reply_{email_id}",
+                                use_container_width=True,
+                            ):
+                                for k in [f"reply_draft_{email_id}", f"reply_show_{email_id}"]:
+                                    st.session_state.pop(k, None)
+                                st.rerun()
+
+                    st.markdown('</div>', unsafe_allow_html=True)
                     
                     st.markdown("---")
         else:
@@ -1101,6 +1194,44 @@ class EmailAssistantUI:
                 
         except Exception as e:
             return f"Error generating response: {str(e)}"
+
+    def send_reply(
+        self,
+        from_email: str,
+        to_email: str,
+        subject: str,
+        reply_body: str,
+    ):
+        """Send an AI-generated reply to the original sender via the email/send API."""
+        reply_subject = subject if subject.lower().startswith("re:") else f"Re: {subject}"
+        try:
+            response = requests.post(
+                f"{self.api_url}/api/v1/email/send",
+                json={
+                    "subject": reply_subject,
+                    "body": reply_body,
+                    "from_email": from_email.strip(),
+                    "to_emails": [to_email.strip()],
+                },
+                timeout=60,
+            )
+            if response.status_code == 200:
+                st.success(f"✅ Reply sent to {to_email}!")
+                st.session_state.email_history.append({
+                    "date": datetime.now().isoformat(),
+                    "to": to_email,
+                    "subject": reply_subject,
+                    "status": "sent (AI reply)",
+                    "sentiment_score": 0.85,
+                    "response_time_minutes": 1,
+                })
+            else:
+                err = response.json().get("detail", response.text)
+                st.error(f"Failed to send reply: {err}")
+        except requests.exceptions.RequestException as e:
+            st.error(f"Error connecting to API: {str(e)}")
+        except Exception as e:
+            st.error(f"Error: {str(e)}")
 
 def main():
     ui = EmailAssistantUI()
