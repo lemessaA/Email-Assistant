@@ -671,67 +671,41 @@ class EmailAssistantUI:
                         subject = email.get('subject', 'No Subject')
                         from_addr = email.get('from', 'No Sender')
                         received_date = email.get('received', email.get('date', 'No Date'))
-                        
-                        st.markdown(f"""
-                        <div class="email-card" style="border-left: 4px solid {border_color}; background: {'#f8f9fa' if is_processed else 'white'}; margin-bottom: 10px;">
-                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                                <div>
-                                    <span style="background: {border_color}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;">
-                                        {status_badge}
-                                    </span>
-                                </div>
-                                <div style="text-align: right; font-size: 12px; color: #6c757d;">
-                                    <small>🕒 {received_date}</small>
-                                </div>
-                            </div>
-                            
-                            <div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">
-                                <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                                    <strong style="color: #495057;">📧 From:</strong>
-                                    <span style="color: #212529; font-weight: 500;">{from_addr}</span>
-                                </div>
-                                
-                                <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                                    <strong style="color: #495057;">📋 Subject:</strong>
-                                    <span style="color: #212529; font-weight: 500; font-size: 16px;">{subject}</span>
-                                </div>
-                                
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                                    <div>
-                                        <strong style="color: #495057;">📊 Priority:</strong>
-                                        <span style="background: {'#dc3545' if 'urgent' in subject.lower() else '#28a745'}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px;">
-                                            {'HIGH' if 'urgent' in subject.lower() else 'Normal'}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <strong style="color: #495057;">📎 Attachments:</strong>
-                                        <span style="background: {'#ffc107' if email.get('has_attachments') else '#6c757d'}; color: {'black' if email.get('has_attachments') else 'white'}; padding: 2px 6px; border-radius: 4px; font-size: 11px;">
-                                            {'Yes' if email.get('has_attachments') else 'No'}
-                                        </span>
-                                    </div>
-                                </div>
-                                
-                                <div style="border-top: 1px solid #dee2e6; padding-top: 10px;">
-                                    <strong style="color: #495057; display: block; margin-bottom: 8px;">📝 Email Content:</strong>
-                                    <div style="background: #ffffff; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.5; color: #212529;">
-                                        {email.get('body', 'No email content available')}
-                                    </div>
-                                </div>
-                            </div>
-                        """, unsafe_allow_html=True)
-                    
+                        priority_tag = 'HIGH' if 'urgent' in subject.lower() else 'Normal'
+                        attach_tag = 'Yes' if email.get('has_attachments') else 'No'
+
+                        # Status + date header
+                        hdr1, hdr2 = st.columns([1, 1])
+                        with hdr1:
+                            st.markdown(f"**{status_badge}**")
+                        with hdr2:
+                            st.caption(f"🕒 {received_date}")
+
+                        # From / Subject / Priority / Attachments
+                        st.markdown(f"**📧 From:** {from_addr}")
+                        st.markdown(f"**📋 Subject:** {subject}")
+                        meta1, meta2 = st.columns(2)
+                        with meta1:
+                            st.markdown(f"**📊 Priority:** `{priority_tag}`")
+                        with meta2:
+                            st.markdown(f"**📎 Attachments:** `{attach_tag}`")
+
+                        # Email body in an expander so it doesn't dominate the page
+                        with st.expander("📝 Email Content", expanded=False):
+                            st.text(email.get('body', 'No email content available'))
+
                     with col_status:
                         st.write("**Actions:**")
                         # Quick action buttons
                         if not is_processed:
-                            if st.button(f"💬", key=f"respond_{email_id}", help="Generate AI Response"):
+                            if st.button("💬", key=f"respond_{email_id}", help="Generate AI Response"):
                                 response = self.generate_auto_response(email)
                                 st.session_state[f"response_{email_id}"] = response
-                            
-                            if st.button(f"📌", key=f"pin_{email_id}", help="Pin for later"):
+
+                            if st.button("📌", key=f"pin_{email_id}", help="Pin for later"):
                                 st.session_state[f"pinned_{email_id}"] = True
-                            
-                            if st.button(f"✅", key=f"process_{email_id}", help="Mark as Processed"):
+
+                            if st.button("✅", key=f"process_{email_id}", help="Mark as Processed"):
                                 st.session_state.email_stats['processed_ids'].add(email_id)
                                 st.session_state.email_stats['total_processed'] += 1
                                 st.session_state[f"processed_{email_id}"] = True
@@ -739,27 +713,23 @@ class EmailAssistantUI:
                                 st.rerun()
                         else:
                             st.success("✅ Processed")
-                            if st.button(f"🔄", key=f"unprocess_{email_id}", help="Mark as Unprocessed"):
+                            if st.button("🔄", key=f"unprocess_{email_id}", help="Mark as Unprocessed"):
                                 st.session_state.email_stats['processed_ids'].discard(email_id)
                                 st.session_state.email_stats['total_processed'] -= 1
                                 if f"processed_{email_id}" in st.session_state:
                                     del st.session_state[f"processed_{email_id}"]
                                 st.rerun()
-                        
-                        if st.button(f"🗑️", key=f"delete_{email_id}", help="Remove from display"):
+
+                        if st.button("🗑️", key=f"delete_{email_id}", help="Remove from display"):
                             # Remove from current emails
                             st.session_state.current_emails = [e for e in st.session_state.current_emails if e['id'] != email_id]
                             st.success(f"🗑️ Email {email_id} removed from display")
                             st.rerun()
-                    
+
                     # Show response if it exists
                     if f"response_{email_id}" in st.session_state:
-                        st.markdown(f"""
-                        <div class="response-card" style="margin-top: 10px; padding: 15px; background: #e8f5e8; border-left: 4px solid #28a745;">
-                            <strong>🤖 AI Response:</strong><br>
-                            {st.session_state[f"response_{email_id}"]}
-                        </div>
-                        """, unsafe_allow_html=True)
+                        st.success("🤖 **AI Response:**")
+                        st.info(st.session_state[f"response_{email_id}"])
                     
                     # Show processed status
                     if f"processed_{email_id}" in st.session_state:
