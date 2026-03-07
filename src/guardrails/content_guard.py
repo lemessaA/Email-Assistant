@@ -196,6 +196,48 @@ class ContentGuard:
             details=details,
         )
 
+    def redact_sensitive_data(self, draft: str) -> str:
+        """
+        Redact or mask sensitive data in the draft.
+
+        Args:
+            draft: The email draft text to redact.
+
+        Returns:
+            The draft with sensitive data redacted.
+        """
+        redacted = draft
+
+        # Redact PII - order matters, more specific patterns first
+        # SSN first (more specific)
+        ssn_pattern = _PII_PATTERNS["ssn"]
+        redacted = ssn_pattern.sub("[SSN REDACTED]", redacted)
+
+        # Email
+        email_pattern = _PII_PATTERNS["email_address"]
+        redacted = email_pattern.sub("[EMAIL REDACTED]", redacted)
+
+        # Phone (after SSN to avoid conflicts)
+        phone_pattern = _PII_PATTERNS["phone_number"]
+        redacted = phone_pattern.sub("[PHONE REDACTED]", redacted)
+
+        # Credit card
+        credit_pattern = _PII_PATTERNS["credit_card"]
+        redacted = credit_pattern.sub("[CREDIT CARD REDACTED]", redacted)
+
+        # Passport
+        passport_pattern = _PII_PATTERNS["passport"]
+        redacted = passport_pattern.sub("[PASSPORT REDACTED]", redacted)
+
+        # Redact sensitive topics (mask keywords)
+        for category, keywords in _SENSITIVE_TOPICS.items():
+            for keyword in keywords:
+                # Use word boundaries to avoid partial matches
+                pattern = re.compile(r'\b' + re.escape(keyword) + r'\b', re.IGNORECASE)
+                redacted = pattern.sub("[REDACTED]", redacted)
+
+        return redacted
+
     # ------------------------------------------------------------------
     # Individual Checks
     # ------------------------------------------------------------------
