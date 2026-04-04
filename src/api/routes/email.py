@@ -115,6 +115,8 @@ async def send_email(
             }
         else:
             raise HTTPException(status_code=502, detail=message)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

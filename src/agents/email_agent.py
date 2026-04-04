@@ -60,7 +60,8 @@ class EmailAssistantAgent:
         return ChatGroq(
             model="llama-3.1-8b-instant",
             temperature=0.1,
-            streaming=True
+            streaming=True,
+            api_key=settings.GROQ_API_KEY
         )
     
     def _initialize_tools(self):
