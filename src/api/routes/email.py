@@ -130,14 +130,24 @@ async def get_unread_emails(
     try:
         from src.agents.tools import EmailTools
         from src.core.config import settings
+        from src.database.connection import init_db
+        from sqlalchemy.orm import Session
+        from src.database.crud import get_user_settings
         
-        # Use provided credentials or fall back to settings
+        engine = init_db()
+        with Session(engine) as db:
+            db_settings = get_user_settings(db)
+            final_imap_server = imap_server or db_settings.imap_server or settings.imap_server
+            final_user = email_user or db_settings.email_user or settings.email_user or "your-email@gmail.com"
+            final_password = email_password or db_settings.email_password or settings.email_password or "your-app-password"
+        
+        # Use provided credentials or fall back to DB/settings
         emails = EmailTools.get_unread_emails.invoke({
             "limit": 10,
             "folder": "inbox",
-            "imap_server": imap_server or settings.imap_server,
-            "username": email_user or settings.email_user or "your-email@gmail.com",
-            "password": email_password or settings.email_password or "your-app-password"
+            "imap_server": final_imap_server,
+            "username": final_user,
+            "password": final_password
         })
         
         return {

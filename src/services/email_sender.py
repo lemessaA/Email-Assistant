@@ -9,6 +9,9 @@ from typing import List, Optional
 import os
 
 from src.core.config import settings
+from src.database.connection import init_db
+from sqlalchemy.orm import Session
+from src.database.crud import get_user_settings
 
 
 def send_email(
@@ -28,8 +31,16 @@ def send_email(
     Returns:
         tuple: (success: bool, message: str)
     """
-    if not settings.smtp_host or not settings.smtp_username or not settings.smtp_password:
-        return False, "SMTP not configured. Set SMTP_HOST, SMTP_USERNAME, and SMTP_PASSWORD in .env"
+    engine = init_db()
+    with Session(engine) as db:
+        db_settings = get_user_settings(db)
+        smtp_host = db_settings.smtp_host or settings.smtp_host
+        smtp_username = db_settings.smtp_username or settings.smtp_username
+        smtp_password = db_settings.smtp_password or settings.smtp_password
+        smtp_port = db_settings.smtp_port or settings.smtp_port
+
+    if not smtp_host or not smtp_username or not smtp_password:
+        return False, "SMTP not configured. Configure in Settings UI or .env"
 
     cc_emails = cc_emails or []
     bcc_emails = bcc_emails or []
@@ -63,9 +74,9 @@ def send_email(
 
         all_recipients = to_emails + cc_emails + bcc_emails
 
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
             server.starttls()
-            server.login(settings.smtp_username, settings.smtp_password)
+            server.login(smtp_username, smtp_password)
             server.sendmail(from_email, all_recipients, msg.as_string())
 
         return True, f"Email sent successfully to {', '.join(to_emails)}"

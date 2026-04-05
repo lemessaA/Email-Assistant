@@ -24,3 +24,19 @@ class EmailHistory(Base):
     response = Column(Text, nullable=False)
     processing_time = Column(Integer, nullable=False)  # in seconds
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class UserSettings(Base):
+    __tablename__ = "user_settings"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    # SMTP
+    smtp_host = Column(String, nullable=True)
+    smtp_port = Column(Integer, nullable=True, default=587)
+    smtp_username = Column(String, nullable=True)
+    smtp_password = Column(String, nullable=True)
+    
+    # IMAP
+    imap_server = Column(String, nullable=True)
+    imap_port = Column(Integer, nullable=True, default=993)
+    email_user = Column(String, nullable=True)
+    email_password = Column(String, nullable=True)

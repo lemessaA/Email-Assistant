@@ -2,6 +2,7 @@
 
 import React from 'react';
 import styles from '@/app/page.module.css';
+import Link from 'next/link';
 import { AppConfig, MODELS, TONES, PRIORITIES, TEMPLATES } from '@/types';
 
 interface SidebarProps {
@@ -18,7 +19,19 @@ export function Sidebar({ config, onConfigChange, onClear }: SidebarProps) {
       </div>
 
       <div className={styles.sidebarSection}>
+        <h3>Quick Actions</h3>
+        <Link 
+          href="/settings" 
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-blue-900/50 bg-blue-950/20 text-blue-400 rounded-lg hover:bg-blue-900/30 hover:text-white transition-all text-sm mb-4"
+          style={{ textDecoration: 'none' }}
+        >
+          ⚙️ Project Settings
+        </Link>
+      </div>
+
+      <div className={styles.sidebarSection}>
         <h3>Configuration</h3>
+
         <div className={styles.formGroup}>
           <label>Your Email (Sender)</label>
           <input

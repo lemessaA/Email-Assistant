@@ -7,6 +7,11 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import requests
 from bs4 import BeautifulSoup
+from src.core.config import settings
+from src.database.connection import init_db
+from sqlalchemy.orm import Session
+from src.database.crud import get_user_settings
+from src.services.email_sender import send_email as send_email_service
 
 class EmailTools:
     
@@ -20,32 +25,18 @@ class EmailTools:
         attachments: Optional[List[str]] = None
     ) -> str:
         """Send an email to recipients"""
-        try:
-            # Implementation using SMTP
-            msg = MIMEMultipart()
-            msg['From'] = "assistant@company.com"
-            msg['To'] = ', '.join(to)
-            msg['Subject'] = subject
-            
-            if cc:
-                msg['Cc'] = ', '.join(cc)
-            
-            msg.attach(MIMEText(body, 'html'))
-            
-            # Add attachments if any
-            if attachments:
-                # Attachment handling code
-                pass
-            
-            # Send email
-            with smtplib.SMTP("smtp.gmail.com", 587) as server:
-                server.starttls()
-                server.login("username", "password")
-                server.send_message(msg)
-            
-            return f"Email sent successfully to {to}"
-        except Exception as e:
-            return f"Error sending email: {str(e)}"
+        # Forward to the central send_email_service which is already DB-aware
+        success, message = send_email_service(
+            from_email=settings.smtp_username or "assistant@company.com", # Default sender
+            to_emails=to,
+            subject=subject,
+            body=body,
+            cc_emails=cc,
+            bcc_emails=bcc,
+            attachment_paths=attachments,
+            use_html=True
+        )
+        return message if success else f"Error: {message}"
     
     @tool
     def draft_email(
@@ -78,9 +69,9 @@ class EmailTools:
     def get_unread_emails(
         limit: int = 10,
         folder: str = "inbox",
-        imap_server: str = "imap.gmail.com",
-        username: str = "your-email@gmail.com",
-        password: str = "your-app-password"
+        imap_server: Optional[str] = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Retrieve unread emails from specified folder using real IMAP"""
         try:
@@ -88,10 +79,18 @@ class EmailTools:
             import email
             from email.header import decode_header
             
+            # Fetch from DB if not provided
+            engine = init_db()
+            with Session(engine) as db:
+                db_settings = get_user_settings(db)
+                final_imap_server = imap_server or db_settings.imap_server or settings.imap_server or "imap.gmail.com"
+                final_username = username or db_settings.email_user or settings.email_user or "your-email@gmail.com"
+                final_password = password or db_settings.email_password or settings.email_password or "your-app-password"
+            
             # Connect to IMAP server
-            with imaplib.IMAP4_SSL(imap_server) as imap:
+            with imaplib.IMAP4_SSL(final_imap_server) as imap:
                 # Login
-                imap.login(username, password)
+                imap.login(final_username, final_password)
                 
                 # Select the folder
                 status, messages = imap.select(folder)
