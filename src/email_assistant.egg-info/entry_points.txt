@@ -1,2 +1,2 @@
 [console_scripts]
-app = app:app
+app = src.api.main:app
