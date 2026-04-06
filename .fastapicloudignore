@@ -1,0 +1,19 @@
+# Ignore frontend as it's typically deployed separately
+frontend/
+
+# Ignore tests and local data
+tests/
+data/
+*.db
+email_assistant.db
+email-db.db
+
+# Standard ignores
+__pycache__/
+*.pyc
+.venv/
+.git/
+.env
+.env.production
+.python-version
+.langgraph_api/
