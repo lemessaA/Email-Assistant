@@ -9,6 +9,7 @@ import { ComposeTab } from '@/components/features/compose/ComposeTab';
 import { ProcessTab } from '@/components/features/process/ProcessTab';
 import { AnalyzeTab } from '@/components/features/analyze/AnalyzeTab';
 import { HistoryTab } from '@/components/features/history/HistoryTab';
+import { API_ENDPOINTS } from '@/utils/api';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabState>('Compose');
@@ -58,7 +59,7 @@ export default function Home() {
     
     setIsGenerating(true);
     try {
-      const response = await fetch('http://localhost:8000/api/v1/email/draft', {
+      const response = await fetch(API_ENDPOINTS.getDraft, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -106,7 +107,7 @@ export default function Home() {
     
     setIsSending(true);
     try {
-      const response = await fetch('http://localhost:8000/api/v1/email/send', {
+      const response = await fetch(API_ENDPOINTS.sendEmail, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import styles from '@/app/page.module.css';
+import { API_ENDPOINTS } from '@/utils/api';
 
 export function ProcessTab() {
   const [emails, setEmails] = useState<any[]>([]);
@@ -10,7 +11,7 @@ export function ProcessTab() {
   const checkNow = async () => {
     setIsFetching(true);
     try {
-      const response = await fetch('http://localhost:8000/api/v1/email/emails/unread');
+      const response = await fetch(API_ENDPOINTS.getUnread);
       if (response.ok) {
         const data = await response.json();
         if (data.emails) {

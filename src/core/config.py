@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     
     # Security
     secret_key: str = "your-secret-key-here"
-    cors_origins: List[str] = ["http://localhost:3000", "http://localhost:8501"]
+    cors_origins: List[str] = ["*"]  # Allow all for deployment, can be narrowed later
     
     # Rate Limiting
     rate_limit_per_minute: int = 60

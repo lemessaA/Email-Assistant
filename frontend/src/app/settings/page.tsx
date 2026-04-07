@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { API_ENDPOINTS } from '@/utils/api';
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
@@ -20,7 +21,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     // Fetch settings on load
-    fetch('http://localhost:8000/api/v1/settings/')
+    fetch(API_ENDPOINTS.getSettings)
       .then(res => res.json())
       .then(data => {
         setFormConfig({
@@ -55,7 +56,7 @@ export default function SettingsPage() {
     setMessage(null);
 
     try {
-      const res = await fetch('http://localhost:8000/api/v1/settings/', {
+      const res = await fetch(API_ENDPOINTS.getSettings, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formConfig)
