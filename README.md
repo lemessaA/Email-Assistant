@@ -32,19 +32,57 @@
 ## 📂 Project Structure
 
 ```
-.
-├── frontend/             # Next.js frontend application
-├── src/                  # FastAPI backend application
-│   ├── agents/           # LangGraph agent definitions
-│   ├── api/              # FastAPI routers and endpoints
-│   ├── core/             # Configuration and application settings
-│   ├── database/         # SQLite and Vector store connections
-│   ├── eval/             # Evaluation frameworks functionality
-│   ├── guardrails/       # Content and safety validation
-│   ├── hitl/             # Human-in-the-loop review queues
-│   └── services/         # IMAP/SMTP setup, database queries
-├── app.py                # Backend entry point
-└── requirements.txt      # Python dependencies
+Email-Assistant/
+├── app.py                    # FastAPI / Vercel entrypoint
+├── langgraph.json            # LangGraph graph configuration
+├── pyproject.toml            # Project metadata & dependencies
+├── uv.lock                   # Dependency lock file
+├── .env.example              # Environment variable template
+│
+├── src/                      # Backend source code
+│   ├── agents/               # LangGraph agent, tools & workflow
+│   ├── api/                  # FastAPI app, schemas & routes
+│   ├── core/                 # Config, LLM, embeddings & memory
+│   ├── database/             # SQLite models, CRUD & connection
+│   ├── eval/                 # Evaluation framework & metrics
+│   ├── guardrails/           # Content safety validation
+│   ├── hitl/                 # Human-in-the-Loop review manager
+│   ├── integrations/         # Google Calendar & Web Search
+│   ├── services/             # Email sender (SMTP)
+│   └── utils/                # Logging, parsing & templates
+│
+├── frontend/                 # Next.js 15 frontend
+│   └── src/
+│       ├── app/              # App Router pages (settings, etc.)
+│       ├── components/       # UI components (features + layout)
+│       ├── types/            # TypeScript type definitions
+│       └── utils/            # API client & helpers
+│
+├── deploy/                   # All deployment configuration
+│   ├── docker/               # Dockerfile, Dockerfile.ui, docker-compose.yml
+│   ├── nginx/                # nginx.conf (reverse proxy)
+│   ├── monitoring/           # Prometheus config
+│   ├── render.yaml           # Render.com service config
+│   ├── deploy.sh             # Generic deploy script
+│   ├── deploy-render.sh      # Render-specific deploy script
+│   ├── docker-deploy.sh      # Docker deploy script
+│   └── deploy.py             # Python deploy helper
+│
+├── docs/                     # Project documentation
+│   ├── DEPLOYMENT.md
+│   ├── DOCKER.md
+│   ├── GOOGLE_CALENDAR_SETUP.md
+│   ├── RENDER_DEPLOYMENT.md
+│   └── WEB_SEARCH_SETUP.md
+│
+├── tests/                    # Test suite
+│   ├── test_email.py
+│   ├── test_guardrails.py
+│   ├── test_hitl.py
+│   └── test_real_emails.py
+│
+└── data/                     # Runtime data & email drafts
+    └── drafts/
 ```
 
 ## ⚙️ Prerequisites
@@ -72,7 +110,13 @@ source .venv/bin/activate  # On Windows use `.venv\Scripts\activate`
 pip install -r requirements.txt
 ```
 
-Configure your environment variables by creating a `.env` file in the root directory. You can copy the template below:
+Configure your environment variables by copying the template:
+
+```bash
+cp .env.example .env
+```
+
+Then edit `.env` with your credentials:
 
 ```ini
 # LLM Provider Configuration
@@ -112,7 +156,7 @@ The Next.js UI should now be available at **http://localhost:3000** ✨
 
 ## 🐳 Docker Support
 
-This application can also be deployed seamlessly via Docker. For specialized instructions regarding Docker, refer to the included [`DOCKER_README.md`](DOCKER_README.md).
+This application can also be deployed seamlessly via Docker. For specialized instructions regarding Docker, refer to [`docs/DOCKER.md`](docs/DOCKER.md).
 
 ## 📝 License
 

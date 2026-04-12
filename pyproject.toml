@@ -7,6 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "langchain>=1.2.9",
     "langchain-groq>=1.0.0",
+    
     "langchain-community>=0.4.1",
     "langchain-core>=1.2.9",
     "langchain-ollama>=1.0.1",
@@ -28,10 +29,10 @@ dependencies = [
 ]
 
 [project.scripts]
-app = "src.api.main:app"
+app = "src.backend.api.main:app"
 
 [tool.fastapi]
-entrypoint = "src.api.main:app"
+entrypoint = "src.backend.api.main:app"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
