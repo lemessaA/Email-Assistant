@@ -148,12 +148,35 @@ export default function Home() {
 
   return (
     <div className={styles.container}>
-      <Sidebar config={config} onConfigChange={handleConfigChange} onClear={clearAllData} />
+      {/* Mobile overlay */}
+      <div
+        className={`${styles.sidebarOverlay} ${sidebarOpen ? styles.visible : ''}`}
+        onClick={() => setSidebarOpen(false)}
+        aria-hidden="true"
+      />
+
+      <Sidebar
+        config={config}
+        onConfigChange={handleConfigChange}
+        onClear={clearAllData}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
       <main className={styles.mainContent}>
         {/* Header */}
         <div className={styles.header}>
           <div className={styles.headerInner}>
+            {/* Hamburger — mobile only */}
+            <button
+              id="sidebarToggle"
+              className={styles.hamburger}
+              onClick={() => setSidebarOpen((o) => !o)}
+              aria-label="Toggle sidebar"
+            >
+              ☰
+            </button>
+
             <div className={styles.headerLeft}>
               <h1>AI Email Assistant</h1>
               <p>Intelligent email processing powered by advanced language models</p>
@@ -205,3 +228,4 @@ export default function Home() {
     </div>
   );
 }
+

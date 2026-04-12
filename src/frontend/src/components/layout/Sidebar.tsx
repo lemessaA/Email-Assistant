@@ -9,6 +9,8 @@ interface SidebarProps {
   config: AppConfig;
   onConfigChange: (key: keyof AppConfig, value: any) => void;
   onClear: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 const SelectField = ({
@@ -32,10 +34,36 @@ const SelectField = ({
   </div>
 );
 
-export function Sidebar({ config, onConfigChange, onClear }: SidebarProps) {
+export function Sidebar({ config, onConfigChange, onClear, isOpen, onClose }: SidebarProps) {
   return (
-    <aside className={styles.sidebar}>
+    <aside className={`${styles.sidebar} ${isOpen ? styles.open : ''}`}>
       <div className={styles.sidebarInner}>
+
+        {/* Close button — mobile only */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            aria-label="Close sidebar"
+            style={{
+              display: 'none',
+              position: 'absolute',
+              top: '1rem',
+              right: '1rem',
+              width: '30px',
+              height: '30px',
+              padding: 0,
+              background: 'rgba(99,102,241,0.1)',
+              border: '1px solid rgba(99,102,241,0.2)',
+              borderRadius: '6px',
+              color: '#818cf8',
+              fontSize: '16px',
+              cursor: 'pointer',
+            }}
+            className="mobileCloseBtn"
+          >
+            ×
+          </button>
+        )}
 
         {/* Brand */}
         <div className={styles.sidebarBrand}>
