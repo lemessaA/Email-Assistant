@@ -25,8 +25,20 @@ export type TabState = 'Compose' | 'Analyze' | 'Process' | 'History';
 export const MODELS = [
   'llama-3.1-8b-instant',
   'llama-3.1-70b-versatile',
-  'llama-3.1-405b-instruct',
+  'gpt-4o',
+  'claude-3-5-sonnet',
 ];
+
+export interface EmailAnalysis {
+  intent: string;
+  urgency: 'low' | 'medium' | 'high' | 'critical';
+  priority_score: number;
+  is_spam: boolean;
+  is_low_priority: boolean;
+  summary: string;
+  required_actions: string[];
+  context_needed: string[];
+}
 
 export const TONES = ['Formal', 'Professional', 'Casual', 'Friendly'];
 export const PRIORITIES = ['Low', 'Normal', 'High', 'Urgent'];

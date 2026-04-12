@@ -13,6 +13,7 @@ load_dotenv()
 from guardrails.content_guard import ContentGuard, RiskLevel
 from hitl.review_manager import ReviewManager
 from core.config import settings
+from api.schemas import EmailAnalysisSchema
 
 
 
@@ -35,9 +36,10 @@ class AgentState(TypedDict):
     requires_human_review: bool                   # True when HITL is needed
     review_status: Optional[str]                  # pending / approved / rejected
     review_id: Optional[str]                      # ID in hitl_reviews table
+    analysis: Optional[EmailAnalysisSchema]       # Structured analysis result
 
 class EmailAssistantAgent:
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config = config or {}
         self.llm = self._initialize_llm()
         self.tools = self._initialize_tools()
@@ -131,27 +133,46 @@ class EmailAssistantAgent:
         return workflow.compile()
     
     def _analyze_email(self, state: AgentState) -> AgentState:
-        """Analyze incoming email to determine intent and priority"""
-        messages = state["messages"]
+        """Analyze incoming email to determine intent and priority with structured output"""
         email_data = state["email_data"]
         
-        system_prompt = """You are an expert email analyst. Analyze the email to determine:
-        1. Intent (question, request, complaint, scheduling, etc.)
-        2. Urgency (low, medium, high, critical)
-        3. Required actions
-        4. Context needed for response
-        5. Suggested response type"""
+        system_prompt = """You are an expert email analyst for a high-performance executive assistant. 
+        Your task is to analyze the incoming email and provide a structured analysis.
+        
+        Prioritization Rules:
+        - Critical/High Urgency: External client requests, urgent bug reports, scheduling for today/tomorrow.
+        - Low Priority: Newsletters (unless explicitly requested), social notifications, automated reports.
+        - Spam: Unsolicited marketing, suspicious links, completely irrelevant content.
+        
+        Be precise with the priority score (1-10):
+        - 10: Immediate action required.
+        - 1: Pure noise/trash.
+        """
         
         analysis_prompt = ChatPromptTemplate.from_messages([
             SystemMessage(content=system_prompt),
             HumanMessage(content=f"Analyze this email:\n\nSubject: {email_data.get('subject')}\n\nBody: {email_data.get('body')}")
         ])
         
-        chain = analysis_prompt | self.llm
-        analysis = chain.invoke({})
+        # Use structured output
+        structured_llm = self.llm.with_structured_output(EmailAnalysisSchema)
+        chain = analysis_prompt | structured_llm
         
-        state["metadata"]["analysis"] = analysis.content
-        state["next_step"] = "gather_context"
+        try:
+            analysis = chain.invoke({})
+            state["analysis"] = analysis
+            state["metadata"]["analysis"] = analysis.summary # Keep summary in metadata for compatibility
+            
+            # Decide if we should skip processing if it's spam
+            if analysis.is_spam:
+                state["next_step"] = "end" # We will handle this in routing if needed
+            else:
+                state["next_step"] = "gather_context"
+                
+        except Exception as e:
+            logger.error(f"Error in structured analysis: {e}")
+            # Fallback or partial state
+            state["next_step"] = "gather_context"
         
         return state
     
@@ -428,6 +449,7 @@ class EmailAssistantAgent:
             "requires_human_review": False,
             "review_status": None,
             "review_id": None,
+            "analysis": None,
         }
 
         # Execute the agent graph
@@ -436,7 +458,7 @@ class EmailAssistantAgent:
         return {
             "response": result["metadata"].get("draft_response"),
             "actions_taken": result["metadata"].get("actions", []),
-            "analysis": result["metadata"].get("analysis"),
+            "analysis": result.get("analysis").model_dump() if result.get("analysis") else {"summary": result["metadata"].get("analysis")},
             "context_used": result["context"],
             # Guardrail / HITL metadata
             "guardrail_result": result.get("guardrail_result"),
