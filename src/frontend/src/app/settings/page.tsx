@@ -97,6 +97,25 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {/* Video Guide Banner */}
+        <div className="mb-8 p-5 bg-blue-950/30 border border-blue-900 rounded-xl flex items-center justify-between shadow-lg">
+          <div className="flex items-start gap-4">
+            <span className="text-3xl">📺</span>
+            <div>
+              <h3 className="text-lg font-semibold text-blue-300">Need help configuring?</h3>
+              <p className="text-sm text-gray-400 mt-1">Watch our quick setup guide to learn how to generate App Passwords.</p>
+            </div>
+          </div>
+          <a
+            href="https://youtu.be/T9hKMDXxE7U?si=jl7C46FqnHTptNgp"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors shadow-md shadow-blue-500/20 whitespace-nowrap ml-4"
+          >
+            Watch Video Guide &rarr;
+          </a>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-8 bg-gray-900 border border-gray-800 rounded-2xl p-8 shadow-2xl">
           {/* SMTP Config */}
           <div className="space-y-6">
