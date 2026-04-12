@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any, List
 import pandas as pd
-from src.backend.api.schemas import EvaluationRequest, BatchEvaluationRequest
-from src.backend.eval.evaluator import EmailAssistantEvaluator
+from api.schemas import EvaluationRequest, BatchEvaluationRequest
+from eval.evaluator import EmailAssistantEvaluator
 
 router = APIRouter()
 

@@ -7,11 +7,11 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import requests
 from bs4 import BeautifulSoup
-from src.backend.core.config import settings
-from src.backend.database.connection import init_db
+from core.config import settings
+from database.connection import init_db
 from sqlalchemy.orm import Session
-from src.backend.database.crud import get_user_settings
-from src.backend.services.email_sender import send_email as send_email_service
+from database.crud import get_user_settings
+from services.email_sender import send_email as send_email_service
 
 class EmailTools:
     

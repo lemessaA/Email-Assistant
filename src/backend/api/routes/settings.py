@@ -3,8 +3,8 @@ from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
 
-from src.backend.database.connection import get_db
-from src.backend.database.crud import get_user_settings, update_user_settings
+from database.connection import get_db
+from database.crud import get_user_settings, update_user_settings
 
 router = APIRouter()
 

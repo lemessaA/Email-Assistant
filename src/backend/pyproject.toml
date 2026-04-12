@@ -2,7 +2,6 @@
 name = "email-assistant"
 version = "0.1.0"
 description = "AI-powered Email Assistant with LangChain"
-readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "langchain>=1.2.9",
@@ -29,11 +28,14 @@ dependencies = [
 ]
 
 [project.scripts]
-app = "src.backend.api.main:app"
+app = "api.main:app"
 
 [tool.fastapi]
-entrypoint = "src.backend.api.main:app"
+entrypoint = "api.main:app"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]

@@ -8,10 +8,10 @@ from email import encoders
 from typing import List, Optional
 import os
 
-from src.backend.core.config import settings
-from src.backend.database.connection import init_db
+from core.config import settings
+from database.connection import init_db
 from sqlalchemy.orm import Session
-from src.backend.database.crud import get_user_settings
+from database.crud import get_user_settings
 
 
 def send_email(

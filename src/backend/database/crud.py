@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from src.backend.database.models import UserSettings
+from database.models import UserSettings
 
 def get_user_settings(db: Session, user_id: int = 1):
     settings = db.query(UserSettings).filter(UserSettings.id == user_id).first()

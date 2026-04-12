@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from src.backend.hitl.review_manager import ReviewManager, ReviewStatus
+from hitl.review_manager import ReviewManager, ReviewStatus
 
 router = APIRouter()
 

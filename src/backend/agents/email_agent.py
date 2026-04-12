@@ -10,13 +10,13 @@ from loguru import logger
 
 load_dotenv()
 
-from src.backend.guardrails.content_guard import ContentGuard, RiskLevel
-from src.backend.hitl.review_manager import ReviewManager
-from src.backend.core.config import settings
+from guardrails.content_guard import ContentGuard, RiskLevel
+from hitl.review_manager import ReviewManager
+from core.config import settings
 
 
 
-from src.backend.agents.tools import (
+from agents.tools import (
     EmailTools,
     SearchTools,
     CalendarTools,

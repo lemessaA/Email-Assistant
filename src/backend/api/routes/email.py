@@ -5,8 +5,8 @@ from typing import List, Optional, Dict, Any
 import json
 import asyncio
 
-from src.backend.agents.email_agent import EmailAssistantAgent
-from src.backend.services.email_sender import send_email as send_email_smtp
+from agents.email_agent import EmailAssistantAgent
+from services.email_sender import send_email as send_email_smtp
 
 router = APIRouter()
 
@@ -128,11 +128,11 @@ async def get_unread_emails(
 ):
     """Get unread emails for processing"""
     try:
-        from src.backend.agents.tools import EmailTools
-        from src.backend.core.config import settings
-        from src.backend.database.connection import init_db
+        from agents.tools import EmailTools
+        from core.config import settings
+        from database.connection import init_db
         from sqlalchemy.orm import Session
-        from src.backend.database.crud import get_user_settings
+        from database.crud import get_user_settings
         
         engine = init_db()
         with Session(engine) as db:

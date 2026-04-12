@@ -5,10 +5,10 @@ import asyncio
 from contextlib import asynccontextmanager
 from loguru import logger
 
-from src.backend.core.config import settings, Environment
-from src.backend.agents.email_agent import EmailAssistantAgent
-from src.backend.api.routes import email, eval, review, settings as api_settings
-from src.backend.database.connection import init_db
+from core.config import settings, Environment
+from agents.email_agent import EmailAssistantAgent
+from api.routes import email, eval, review, settings as api_settings
+from database.connection import init_db
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
