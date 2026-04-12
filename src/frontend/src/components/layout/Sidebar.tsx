@@ -39,31 +39,14 @@ export function Sidebar({ config, onConfigChange, onClear, isOpen, onClose }: Si
     <aside className={`${styles.sidebar} ${isOpen ? styles.open : ''}`}>
       <div className={styles.sidebarInner}>
 
-        {/* Close button — mobile only */}
-        {onClose && (
-          <button
-            onClick={onClose}
-            aria-label="Close sidebar"
-            style={{
-              display: 'none',
-              position: 'absolute',
-              top: '1rem',
-              right: '1rem',
-              width: '30px',
-              height: '30px',
-              padding: 0,
-              background: 'rgba(99,102,241,0.1)',
-              border: '1px solid rgba(99,102,241,0.2)',
-              borderRadius: '6px',
-              color: '#818cf8',
-              fontSize: '16px',
-              cursor: 'pointer',
-            }}
-            className="mobileCloseBtn"
-          >
-            ×
-          </button>
-        )}
+        {/* Close button — shown only on mobile via CSS */}
+        <button
+          onClick={onClose}
+          aria-label="Close sidebar"
+          className={styles.sidebarCloseBtn}
+        >
+          ×
+        </button>
 
         {/* Brand */}
         <div className={styles.sidebarBrand}>
