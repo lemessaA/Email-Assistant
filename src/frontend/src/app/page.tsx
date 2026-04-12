@@ -20,6 +20,8 @@ const TAB_ICONS: Record<string, string> = {
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabState>('Compose');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   const [config, setConfig] = useState<AppConfig>({
     senderEmail: '',
     model: MODELS[0],
