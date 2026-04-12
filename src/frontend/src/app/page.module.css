@@ -390,6 +390,32 @@
   color: #a7f3d0;
 }
 
+/* ─── Sidebar Close Button ─── */
+.sidebarCloseBtn {
+  display: none;
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 6px;
+  color: #818cf8;
+  font-size: 16px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  z-index: 50;
+}
+
+.sidebarCloseBtn:hover {
+  background: rgba(99, 102, 241, 0.2);
+  color: #e2e8ff;
+}
+
 /* ─── Hamburger Button ─── */
 .hamburger {
   display: none;
@@ -472,11 +498,19 @@
     left: 0;
     height: 100%;
     width: 280px;
-    z-index: 30;
+    z-index: 40;
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border-right: 1px solid rgba(99, 102, 241, 0.2);
     box-shadow: 4px 0 30px rgba(0, 0, 0, 0.5);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebarCloseBtn {
+    display: flex;
   }
 
   .sidebar.open {
